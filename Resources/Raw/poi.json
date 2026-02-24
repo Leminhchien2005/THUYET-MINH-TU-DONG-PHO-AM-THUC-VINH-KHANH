@@ -1,0 +1,74 @@
+[
+  {
+    "id": 1,
+    "name": "Ốc Oanh",
+    "latitude": 10.760972,
+    "longitude": 106.704676,
+    "radius": 120,
+    "description": "Giữa không khí sôi động của phố ẩm thực Vĩnh Khánh, Ốc Oanh nổi bật như một biểu tượng lâu năm của hải sản đường phố Quận 4. Thực đơn phong phú quy tụ nhiều loại ốc và hải sản tươi sống được chế biến theo phong cách đậm đà đặc trưng Sài Gòn. Hương thơm từ các món nướng và xào lan tỏa khắp khu phố mỗi khi đêm xuống. Nhịp điệu nhộn nhịp cùng không gian bình dân tạo nên trải nghiệm ẩm thực chân thực và sống động.",
+    "audio_url": "https://example.com/audio/oc-oanh.mp3"
+  },
+  {
+    "id": 2,
+    "name": "Phá Lấu Cô Thảo",
+    "latitude": 10.756616,
+    "longitude": 106.707300,
+    "radius": 100,
+    "description": "Ẩn mình giữa khu dân cư Quận 4, Phá Lấu Cô Thảo mang đến hương vị truyền thống đậm chất Nam Bộ. Nước dùng nấu cùng nước dừa tạo nên độ béo nhẹ và mùi thơm đặc trưng. Phần nội tạng được làm sạch kỹ lưỡng, giữ độ mềm vừa phải và thấm đều gia vị. Khi dùng kèm bánh mì nóng giòn, tổng thể hương vị trở nên hài hòa và tròn đầy.",
+    "audio_url": "https://example.com/audio/pha-lau-co-thao.mp3"
+  },
+  {
+    "id": 3,
+    "name": "Cháo Ếch Singapore Merlion 89 Vĩnh Khánh",
+    "latitude": 10.761125,
+    "longitude": 106.705831,
+    "radius": 110,
+    "description": "Mang hơi thở ẩm thực Singapore đến giữa lòng Vĩnh Khánh, quán Cháo Ếch Merlion 89 tạo dấu ấn bằng nồi đất nghi ngút khói và hương thơm đậm đà. Thịt ếch được kho sánh quyện với vị mặn ngọt cân bằng và chút cay nhẹ tinh tế. Cháo trắng nóng hổi đóng vai trò nền vị thanh dịu, làm nổi bật phần ếch đậm đà phía trên. Sự kết hợp này tạo nên trải nghiệm ẩm thực ấm áp và đầy chiều sâu.",
+    "audio_url": "https://example.com/audio/chao-ech-109.mp3"
+  },
+  {
+    "id": 4,
+    "name": "Bánh Flan Ngọc Nga",
+    "latitude": 10.762312,
+    "longitude": 106.703169,
+    "radius": 100,
+    "description": "Bánh Flan Ngọc Nga là điểm nhấn ngọt ngào giữa hành trình khám phá ẩm thực Quận 4. Những phần flan mềm mịn, óng ánh lớp caramel nâu hổ phách tạo nên ấn tượng thị giác tinh tế. Vị béo nhẹ và độ ngọt thanh giúp món tráng miệng trở nên dễ thưởng thức. Các phiên bản phô mai và cà phê bổ sung thêm chiều sâu hương vị, mang lại nhiều lựa chọn phong phú.",
+    "audio_url": "https://example.com/audio/banh-flan-ngoc-nga.mp3"
+  },
+  {
+    "id": 5,
+    "name": "Lẩu Gà Lá É Con Gà Trống",
+    "latitude": 10.760846,
+    "longitude": 106.706715,
+    "radius": 150,
+    "description": "Lẩu Gà Lá É Con Gà Trống tái hiện hương vị miền Trung bằng nồi lẩu thanh ngọt được ninh kỹ từ xương gà. Lá é tươi tỏa mùi thơm dịu và vị the nhẹ, tạo điểm nhấn tinh tế trong từng muỗng nước dùng. Thịt gà dai mềm kết hợp cùng rau xanh và bún tươi mang lại sự cân bằng hài hòa. Không gian rộng rãi cùng không khí ấm cúng khiến nơi đây trở thành điểm hẹn lý tưởng cho những buổi sum họp.",
+    "audio_url": "https://example.com/audio/lau-ga-la-e-con-ga-trong.mp3"
+  },
+  {
+    "id": 6,
+    "name": "Cơm Cháy Kho Quẹt",
+    "latitude": 10.760463,
+    "longitude": 106.703812,
+    "radius": 120,
+    "description": "Cơm Cháy Kho Quẹt gợi nhớ đến hương vị mộc mạc của bữa cơm gia đình miền Nam. Lớp cơm cháy vàng ruộm giòn rụm hòa quyện cùng kho quẹt sánh đậm, điểm xuyết tóp mỡ và hành lá thơm lừng. Rau luộc tươi xanh mang lại sự cân bằng thanh nhẹ cho tổng thể món ăn. Sự giản dị trong cách chế biến lại chính là nét hấp dẫn bền vững của địa điểm này.",
+    "audio_url": "https://example.com/audio/com-chay-kho-quet.mp3"
+  },
+  {
+    "id": 7,
+    "name": "Bánh Tráng Nướng Cô Phượng",
+    "latitude": 10.761449,
+    "longitude": 106.702045,
+    "radius": 100,
+    "description": "Giữa khu Bến Vân Đồn sôi động, Bánh Tráng Nướng Cô Phượng mang đến trải nghiệm ăn vặt đặc trưng của giới trẻ Sài Gòn. Bánh được nướng trực tiếp trên than hồng tạo lớp vỏ giòn rụm và mùi thơm quyến rũ. Topping phong phú như trứng, xúc xích và hành lá kết hợp hài hòa trong từng miếng cắn. Nhịp phục vụ nhanh và không khí náo nhiệt góp phần tạo nên sức hút riêng.",
+    "audio_url": "https://example.com/audio/banh-trang-nuong-co-phuong.mp3"
+  },
+  {
+    "id": 8,
+    "name": "Trà Sữa Bobapop Vĩnh Khánh",
+    "latitude": 10.760210,
+    "longitude": 106.705480,
+    "radius": 100,
+    "description": "Bobapop Vĩnh Khánh mang đến khoảng dừng thư giãn giữa tuyến phố ẩm thực nhộn nhịp. Thực đơn đa dạng với trà sữa, trà trái cây và nhiều loại topping tạo nên sự lựa chọn phong phú. Hương vị được pha chế cân bằng, dễ uống và phù hợp nhiều khẩu vị. Không gian hiện đại, sáng sủa góp phần tạo nên cảm giác thoải mái và nhẹ nhàng.",
+    "audio_url": "https://example.com/audio/bobapop.mp3"
+  }
+]
