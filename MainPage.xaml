@@ -4,23 +4,40 @@
     x:Class="FoodStreetGuide.MainPage"
     Title="Danh sách quán">
 
-    <CollectionView x:Name="PoiList">
-        <CollectionView.ItemTemplate>
-            <DataTemplate>
-                <Border Stroke="Gray"
-                        StrokeThickness="1"
-                        Margin="10"
-                        Padding="10">
-                    <VerticalStackLayout>
-                        <Label Text="{Binding Name}"
-                               FontSize="18"
-                               FontAttributes="Bold"/>
-                        <Label Text="{Binding Description}"
-                               FontSize="14"/>
-                    </VerticalStackLayout>
-                </Border>
-            </DataTemplate>
-        </CollectionView.ItemTemplate>
-    </CollectionView>
+    <VerticalStackLayout Padding="20" Spacing="15">
+
+        <!-- PHẦN TEST GPS -->
+        <Label x:Name="LatLabel"
+               Text="Latitude: "
+               FontSize="16"/>
+
+        <Label x:Name="LngLabel"
+               Text="Longitude: "
+               FontSize="16"/>
+
+        <Button Text="Lấy vị trí"
+                Clicked="OnGetLocationClicked"/>
+
+        <!-- DANH SÁCH QUÁN -->
+        <CollectionView x:Name="PoiList">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Border Stroke="Gray"
+                            StrokeThickness="1"
+                            Margin="10"
+                            Padding="10">
+                        <VerticalStackLayout>
+                            <Label Text="{Binding Name}"
+                                   FontSize="18"
+                                   FontAttributes="Bold"/>
+                            <Label Text="{Binding Description}"
+                                   FontSize="14"/>
+                        </VerticalStackLayout>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </VerticalStackLayout>
 
 </ContentPage>
