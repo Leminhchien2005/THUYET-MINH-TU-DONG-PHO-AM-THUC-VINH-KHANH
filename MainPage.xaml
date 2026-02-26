@@ -6,7 +6,6 @@
 
     <VerticalStackLayout Padding="20" Spacing="15">
 
-        <!-- PHẦN TEST GPS -->
         <Label x:Name="LatLabel"
                Text="Latitude: "
                FontSize="16"/>
@@ -15,10 +14,6 @@
                Text="Longitude: "
                FontSize="16"/>
 
-        <Button Text="Lấy vị trí"
-                Clicked="OnGetLocationClicked"/>
-
-        <!-- DANH SÁCH QUÁN -->
         <CollectionView x:Name="PoiList">
             <CollectionView.ItemTemplate>
                 <DataTemplate>
@@ -26,12 +21,19 @@
                             StrokeThickness="1"
                             Margin="10"
                             Padding="10">
-                        <VerticalStackLayout>
+                        <VerticalStackLayout Spacing="4">
+
                             <Label Text="{Binding Name}"
                                    FontSize="18"
                                    FontAttributes="Bold"/>
+
                             <Label Text="{Binding Description}"
                                    FontSize="14"/>
+
+                            <Label Text="{Binding DistanceKm, StringFormat='Khoảng cách: {0:F2} km'}"
+                                   FontSize="13"
+                                   TextColor="Green"/>
+
                         </VerticalStackLayout>
                     </Border>
                 </DataTemplate>

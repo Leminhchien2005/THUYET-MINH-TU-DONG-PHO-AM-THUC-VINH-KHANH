@@ -31,9 +31,8 @@ namespace FoodStreetGuide.Services
         {
             await Init();
 
-            var existingData = await _database!.Table<Poi>().CountAsync();
-            if (existingData > 0)
-                return;
+            // 🔥 Luôn xoá dữ liệu cũ để tránh AudioUrl bị null
+            await _database!.DeleteAllAsync<Poi>();
 
             using var stream = await FileSystem.OpenAppPackageFileAsync("poi.json");
             using var reader = new StreamReader(stream);
@@ -46,7 +45,7 @@ namespace FoodStreetGuide.Services
 
             var poiList = JsonSerializer.Deserialize<List<Poi>>(json, options);
 
-            if (poiList != null)
+            if (poiList != null && poiList.Count > 0)
             {
                 await _database.InsertAllAsync(poiList);
             }

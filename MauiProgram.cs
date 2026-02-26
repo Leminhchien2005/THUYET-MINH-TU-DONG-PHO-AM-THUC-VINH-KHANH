@@ -8,6 +8,7 @@ namespace FoodStreetGuide
         public static MauiApp CreateMauiApp()
         {
             var builder = MauiApp.CreateBuilder();
+
             builder
                 .UseMauiApp<App>()
                 .ConfigureFonts(fonts =>
@@ -16,7 +17,9 @@ namespace FoodStreetGuide
                     fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
                 });
 
+            // Database
             builder.Services.AddSingleton<DatabaseService>();
+
 
 #if DEBUG
             builder.Logging.AddDebug();
