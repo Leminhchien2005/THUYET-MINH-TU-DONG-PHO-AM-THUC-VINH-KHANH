@@ -1,6 +1,8 @@
 ﻿using FoodStreetGuide.Services;
+using FoodStreetGuide.Models;
 using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Maps;
+using Microsoft.Maui.Media;
 
 namespace FoodStreetGuide;
 
@@ -21,7 +23,6 @@ public partial class MainPage : ContentPage
         await _db.SeedDataAsync();
         var list = await _db.GetAllPoiAsync();
 
-
         PoiList.ItemsSource = list;
 
         MyMap.Pins.Clear();
@@ -36,6 +37,17 @@ public partial class MainPage : ContentPage
             };
 
             MyMap.Pins.Add(pin);
+        }
+    }
+
+    // 🔊 TEXT TO SPEECH
+    private async void OnSpeakClicked(object sender, EventArgs e)
+    {
+        if (sender is Button button &&
+            button.BindingContext is Poi poi &&
+            !string.IsNullOrEmpty(poi.Description))
+        {
+            await TextToSpeech.Default.SpeakAsync(poi.Description);
         }
     }
 }

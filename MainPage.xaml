@@ -49,20 +49,27 @@
 
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
-                            <Border BackgroundColor="LightGrey"
+                            <Border BackgroundColor="White"
                                     StrokeThickness="0"
                                     StrokeShape="RoundRectangle 15"
                                     Padding="10"
                                     Margin="0,5">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <VerticalStackLayout>
+                                        <Label Text="{Binding Name}"
+                                               TextColor="#2C2C2E"
+                                               FontAttributes="Bold"/>
+                                        <Label Text="{Binding Description}"
+                                               TextColor="Gray"
+                                               FontSize="12"/>
+                                    </VerticalStackLayout>
 
-                                <VerticalStackLayout>
-                                    <Label Text="{Binding Name}"
-                                           TextColor="#2C2C2E"
-                                           FontAttributes="Bold"/>
-                                    <Label Text="{Binding Description}"
-                                           TextColor="#2C2C2E"
-                                           FontSize="12"/>
-                                </VerticalStackLayout>
+                                    <!-- NÚT PHÁT -->
+                                    <Button Grid.Column="1"
+                                            Text="🔊"
+                                            BackgroundColor="Transparent"
+                                            Clicked="OnSpeakClicked"/>
+                                </Grid>
 
                             </Border>
                         </DataTemplate>
