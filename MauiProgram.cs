@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using FoodStreetGuide.Services;
+using Microsoft.Maui.Controls.Maps;
 
 namespace FoodStreetGuide
 {
@@ -11,6 +12,7 @@ namespace FoodStreetGuide
 
             builder
                 .UseMauiApp<App>()
+                .UseMauiMaps()
                 .ConfigureFonts(fonts =>
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
@@ -19,7 +21,7 @@ namespace FoodStreetGuide
 
             // Database
             builder.Services.AddSingleton<DatabaseService>();
-
+            builder.Services.AddSingleton<MainPage>();
 
 #if DEBUG
             builder.Logging.AddDebug();

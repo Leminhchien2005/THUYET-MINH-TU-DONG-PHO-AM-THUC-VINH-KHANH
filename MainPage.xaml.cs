@@ -1,7 +1,9 @@
-﻿using FoodStreetGuide.Models;
+using FoodStreetGuide.Models;
 using FoodStreetGuide.Services;
-using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Controls.Maps;
+using Microsoft.Maui.Maps;
 using Microsoft.Maui.Media;
+using Microsoft.Maui.ApplicationModel;
 using System.Diagnostics;
 using System.Linq;
 
@@ -13,7 +15,6 @@ public partial class MainPage : ContentPage
     private readonly LocationService _locationService = new();
 
     private List<Poi> _poiList = new();
-
     private int _currentPoiId = -1;
     private CancellationTokenSource? _speechCts;
 
@@ -28,20 +29,32 @@ public partial class MainPage : ContentPage
         base.OnAppearing();
 
         await _db.SeedDataAsync();
-
-        // 🔥 Load dữ liệu 1 lần duy nhất
         _poiList = await _db.GetAllPoiAsync();
         PoiList.ItemsSource = _poiList;
+
+        // Load pin lên map
+        MyMap.Pins.Clear();
+
+        foreach (var poi in _poiList)
+        {
+            var pin = new Pin
+            {
+                Label = poi.Name ?? "",
+                Address = poi.Description ?? "",
+                Location = new Location(poi.Latitude, poi.Longitude)
+            };
+
+            MyMap.Pins.Add(pin);
+        }
 
         var status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
 
         if (status != PermissionStatus.Granted)
         {
-            await DisplayAlert("Lỗi", "Bạn chưa cấp quyền vị trí", "OK");
+            await DisplayAlertAsync("Lỗi", "Bạn chưa cấp quyền vị trí", "OK");
             return;
         }
 
-        // 🔥 Cứ 3 giây kiểm tra vị trí
         Dispatcher.StartTimer(TimeSpan.FromSeconds(3), () =>
         {
             _ = CheckLocationAsync();
@@ -55,10 +68,9 @@ public partial class MainPage : ContentPage
         if (location == null)
             return;
 
-        LatLabel.Text = $"Latitude: {location.Latitude}";
-        LngLabel.Text = $"Longitude: {location.Longitude}";
+        LatLabel.Text = $"Latitude: {location.Latitude:F6}";
 
-        // 🔥 Tính khoảng cách cho từng POI
+        // Tính khoảng cách
         foreach (var poi in _poiList)
         {
             poi.DistanceKm = DistanceHelper.CalculateDistanceKm(
@@ -66,20 +78,16 @@ public partial class MainPage : ContentPage
                 location.Longitude,
                 poi.Latitude,
                 poi.Longitude);
-
-            Debug.WriteLine($"{poi.Name} - {poi.DistanceKm} km");
         }
 
-        // 🔥 Sắp xếp gần → xa
+        // Sắp xếp gần → xa
         _poiList = _poiList
             .OrderBy(p => p.DistanceKm)
             .ToList();
 
-        // 🔥 Refresh lại UI
         PoiList.ItemsSource = null;
         PoiList.ItemsSource = _poiList;
 
-        // 🔥 Lấy quán gần nhất
         var nearestPoi = _poiList.FirstOrDefault();
         if (nearestPoi == null)
             return;
@@ -106,7 +114,7 @@ public partial class MainPage : ContentPage
                     }
                     catch (OperationCanceledException)
                     {
-                        Debug.WriteLine("Speech bị ngắt do chuyển vị trí");
+                        Debug.WriteLine("Speech bị ngắt");
                     }
                 }
             }
