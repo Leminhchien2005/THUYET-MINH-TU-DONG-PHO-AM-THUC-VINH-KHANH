@@ -1,12 +1,12 @@
 ﻿using FoodStreetGuide.Services;
-using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Controls.Maps;
+using Microsoft.Maui.Maps;
 
 namespace FoodStreetGuide;
 
 public partial class MainPage : ContentPage
 {
     private readonly DatabaseService _db;
-    private readonly LocationService _locationService = new();
 
     public MainPage(DatabaseService db)
     {
@@ -18,31 +18,24 @@ public partial class MainPage : ContentPage
     {
         base.OnAppearing();
 
-        await _db.SeedDataAsync();   // đảm bảo có dữ liệu
+        await _db.SeedDataAsync();
         var list = await _db.GetAllPoiAsync();
+
+
         PoiList.ItemsSource = list;
-    }
 
-    private async void OnGetLocationClicked(object sender, EventArgs e)
-    {
-        var status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
+        MyMap.Pins.Clear();
 
-        if (status != PermissionStatus.Granted)
+        foreach (var poi in list)
         {
-            await DisplayAlertAsync("Lỗi", "Bạn chưa cấp quyền vị trí", "OK");
-            return;
-        }
+            var pin = new Pin
+            {
+                Label = poi.Name ?? "",
+                Address = poi.Description ?? "",
+                Location = new Location(poi.Latitude, poi.Longitude)
+            };
 
-        var location = await _locationService.GetCurrentLocationAsync();
-
-        if (location != null)
-        {
-            LatLabel.Text = $"Latitude: {location.Latitude}";
-            LngLabel.Text = $"Longitude: {location.Longitude}";
-        }
-        else
-        {
-            await DisplayAlertAsync("Lỗi", "Không lấy được vị trí", "OK");
+            MyMap.Pins.Add(pin);
         }
     }
 }

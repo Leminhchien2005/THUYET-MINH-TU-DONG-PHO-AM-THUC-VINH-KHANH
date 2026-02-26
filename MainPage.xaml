@@ -1,43 +1,79 @@
 ﻿<ContentPage
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:maps="clr-namespace:Microsoft.Maui.Controls.Maps;assembly=Microsoft.Maui.Controls.Maps"
     x:Class="FoodStreetGuide.MainPage"
-    Title="Danh sách quán">
+    NavigationPage.HasNavigationBar="False">
 
-    <VerticalStackLayout Padding="20" Spacing="15">
+    <Grid>
 
-        <!-- PHẦN TEST GPS -->
-        <Label x:Name="LatLabel"
-               Text="Latitude: "
-               FontSize="16"/>
+        <!-- GOOGLE MAP -->
+        <maps:Map x:Name="MyMap"
+                  IsShowingUser="True"
+                  MapType="Street" />
 
-        <Label x:Name="LngLabel"
-               Text="Longitude: "
-               FontSize="16"/>
+        <!-- SEARCH BAR -->
+        <Border BackgroundColor="White"
+                Padding="10"
+                HeightRequest="55"
+                Margin="20,50,20,0"
+                VerticalOptions="Start"
+                StrokeThickness="0"
+                StrokeShape="RoundRectangle 30"
+                ZIndex="2">
 
-        <Button Text="Lấy vị trí"
-                Clicked="OnGetLocationClicked"/>
+            <Entry x:Name="SearchEntry"
+                   Placeholder="Tìm quán ăn..."
+                   TextColor="Black"
+                   BackgroundColor="Transparent"/>
+        </Border>
 
-        <!-- DANH SÁCH QUÁN -->
-        <CollectionView x:Name="PoiList">
-            <CollectionView.ItemTemplate>
-                <DataTemplate>
-                    <Border Stroke="Gray"
-                            StrokeThickness="1"
-                            Margin="10"
-                            Padding="10">
-                        <VerticalStackLayout>
-                            <Label Text="{Binding Name}"
-                                   FontSize="18"
-                                   FontAttributes="Bold"/>
-                            <Label Text="{Binding Description}"
-                                   FontSize="14"/>
-                        </VerticalStackLayout>
-                    </Border>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
+        <!-- BOTTOM PANEL -->
+        <Border BackgroundColor="White"
+                StrokeThickness="0"
+                StrokeShape="RoundRectangle 30,30,0,0"
+                Padding="20"
+                HeightRequest="220"
+                VerticalOptions="End"
+                ZIndex="1">
 
-    </VerticalStackLayout>
+            <VerticalStackLayout>
+
+                <Label Text="Food Street Guide"
+                       TextColor="#1C1C1E"
+                       FontSize="20"
+                       FontAttributes="Bold"/>
+
+                <CollectionView x:Name="PoiList"
+                                HeightRequest="150">
+
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border BackgroundColor="LightGrey"
+                                    StrokeThickness="0"
+                                    StrokeShape="RoundRectangle 15"
+                                    Padding="10"
+                                    Margin="0,5">
+
+                                <VerticalStackLayout>
+                                    <Label Text="{Binding Name}"
+                                           TextColor="#2C2C2E"
+                                           FontAttributes="Bold"/>
+                                    <Label Text="{Binding Description}"
+                                           TextColor="#2C2C2E"
+                                           FontSize="12"/>
+                                </VerticalStackLayout>
+
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+
+                </CollectionView>
+
+            </VerticalStackLayout>
+
+        </Border>
+
+    </Grid>
 
 </ContentPage>
