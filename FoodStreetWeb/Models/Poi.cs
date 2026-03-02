@@ -1,10 +1,11 @@
-﻿using SQLite;
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
-namespace FoodStreetGuide.Models
+namespace FoodStreetWeb.Models
 {
     public class Poi
     {
-        [PrimaryKey, AutoIncrement]
+        [Key] // tương đương PrimaryKey
         public int Id { get; set; }
 
         public string? Name { get; set; }
@@ -21,7 +22,7 @@ namespace FoodStreetGuide.Models
         public string? ImageUrl { get; set; }
 
         // Không lưu vào DB
-        [Ignore]
+        [NotMapped] // tương đương Ignore
         public double DistanceKm { get; set; }
     }
 }

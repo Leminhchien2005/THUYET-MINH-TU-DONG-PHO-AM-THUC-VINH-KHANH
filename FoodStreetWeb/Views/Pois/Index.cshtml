@@ -1,0 +1,43 @@
+﻿@model IEnumerable<FoodStreetWeb.Models.Poi>
+
+<h2>Danh sách quán ăn</h2>
+
+<p>
+    <a asp-action="Create">Thêm mới</a>
+</p>
+
+<table border="1" cellpadding="10">
+    <thead>
+        <tr>
+            <th>Tên</th>
+            <th>Vĩ độ</th>
+            <th>Kinh độ</th>
+            <th>Bán kính (m)</th>
+            <th>Mô tả</th>
+            <th>Ảnh</th>
+            <th>Hành động</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.Name</td>
+                <td>@item.Latitude</td>
+                <td>@item.Longitude</td>
+                <td>@item.Radius</td>
+                <td>@item.Description</td>
+                <td>
+                    @if (!string.IsNullOrEmpty(item.ImageUrl))
+                    {
+                        <img src="@item.ImageUrl" width="100" />
+                    }
+                </td>
+                <td>
+                    <a asp-action="Edit" asp-route-id="@item.Id">Sửa</a> |
+                    <a asp-action="Delete" asp-route-id="@item.Id">Xóa</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

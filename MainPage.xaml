@@ -41,7 +41,7 @@
                 StrokeThickness="0"
                 StrokeShape="RoundRectangle 30,30,0,0"
                 Padding="20"
-                HeightRequest="220"
+                HeightRequest="240"
                 VerticalOptions="End"
                 ZIndex="1">
 
@@ -53,34 +53,60 @@
                        FontAttributes="Bold"/>
 
                 <CollectionView x:Name="PoiList"
-                                HeightRequest="150">
+                                HeightRequest="170">
 
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
+
+                            <!-- CARD -->
                             <Border BackgroundColor="White"
                                     StrokeThickness="0"
                                     StrokeShape="RoundRectangle 15"
                                     Padding="10"
-                                    Margin="0,5">
+                                    Margin="0,6">
 
-                                <VerticalStackLayout>
+                                <!-- SHADOW ĐÚNG CÁCH -->
+                                <Border.Shadow>
+                                    <Shadow Brush="Black"
+                                            Offset="0,4"
+                                            Radius="10"
+                                            Opacity="0.3"/>
+                                </Border.Shadow>
 
-                                    <Label Text="{Binding Name}"
-                                           TextColor="#2C2C2E"
-                                           FontAttributes="Bold"/>
+                                <Grid ColumnDefinitions="90,*"
+                                      ColumnSpacing="10">
 
-                                    <Label Text="{Binding Description}"
-                                           TextColor="Gray"
-                                           FontSize="12"/>
+                                    <!-- IMAGE -->
+                                    <Image Source="{Binding ImageUrl}"
+                                           HeightRequest="80"
+                                           WidthRequest="80"
+                                           Aspect="AspectFill"
+                                           Grid.Column="0" />
 
-                                    <!-- ✅ HIỂN THỊ KHOẢNG CÁCH -->
-                                    <Label Text="{Binding DistanceKm, StringFormat='Khoảng cách: {0:F2} km'}"
-                                           TextColor="#007AFF"
-                                           FontSize="12"/>
+                                    <!-- INFO -->
+                                    <VerticalStackLayout Grid.Column="1"
+                                                         Spacing="4">
 
-                                </VerticalStackLayout>
+                                        <Label Text="{Binding Name}"
+                                               TextColor="#2C2C2E"
+                                               FontAttributes="Bold"
+                                               FontSize="14"/>
+
+                                        <Label Text="{Binding Description}"
+                                               TextColor="Gray"
+                                               FontSize="12"
+                                               LineBreakMode="TailTruncation"/>
+
+                                        <Label Text="{Binding DistanceKm, StringFormat='Khoảng cách: {0:F2} km'}"
+                                               TextColor="#007AFF"
+                                               FontSize="12"/>
+
+                                    </VerticalStackLayout>
+
+                                </Grid>
 
                             </Border>
+
                         </DataTemplate>
                     </CollectionView.ItemTemplate>
 

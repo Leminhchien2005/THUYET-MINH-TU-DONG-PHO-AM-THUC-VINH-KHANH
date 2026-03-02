@@ -18,6 +18,7 @@ namespace FoodStreetGuide.Services
             string dbPath = Path.Combine(FileSystem.AppDataDirectory, "foodstreet.db3");
             _database = new SQLiteAsyncConnection(dbPath);
 
+            // Tạo bảng theo model mới (có ImageUrl)
             await _database.CreateTableAsync<Poi>();
         }
 
@@ -31,7 +32,7 @@ namespace FoodStreetGuide.Services
         {
             await Init();
 
-            // 🔥 Luôn xoá dữ liệu cũ để tránh AudioUrl bị null
+            // 🔥 Xoá dữ liệu cũ
             await _database!.DeleteAllAsync<Poi>();
 
             using var stream = await FileSystem.OpenAppPackageFileAsync("poi.json");

@@ -1,3 +1,6 @@
 <Solution>
-  <Project Path="FoodStreetGuide.csproj" />
+  <Project Path="../FoodStreetWeb/FoodStreetWeb.csproj" Id="85ac112d-ad08-4de8-9571-80be0d1235a2" />
+  <Project Path="FoodStreetGuide.csproj">
+    <Deploy Solution="Debug|*" />
+  </Project>
 </Solution>
