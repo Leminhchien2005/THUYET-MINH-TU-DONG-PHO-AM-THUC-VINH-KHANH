@@ -36,6 +36,7 @@
                    BackgroundColor="Transparent"/>
         </Border>
 
+
         <!-- BOTTOM PANEL -->
         <Border BackgroundColor="White"
                 StrokeThickness="0"
@@ -58,14 +59,12 @@
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
 
-                            <!-- CARD -->
                             <Border BackgroundColor="White"
                                     StrokeThickness="0"
                                     StrokeShape="RoundRectangle 15"
                                     Padding="10"
                                     Margin="0,6">
 
-                                <!-- SHADOW ĐÚNG CÁCH -->
                                 <Border.Shadow>
                                     <Shadow Brush="Black"
                                             Offset="0,4"
@@ -76,14 +75,12 @@
                                 <Grid ColumnDefinitions="90,*"
                                       ColumnSpacing="10">
 
-                                    <!-- IMAGE -->
                                     <Image Source="{Binding ImageUrl}"
                                            HeightRequest="80"
                                            WidthRequest="80"
                                            Aspect="AspectFill"
                                            Grid.Column="0" />
 
-                                    <!-- INFO -->
                                     <VerticalStackLayout Grid.Column="1"
                                                          Spacing="4">
 

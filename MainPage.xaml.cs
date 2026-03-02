@@ -1,38 +1,115 @@
 using FoodStreetGuide.Models;
 using FoodStreetGuide.Services;
+using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Maps;
 using Microsoft.Maui.Media;
-using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Networking;
 using System.Diagnostics;
-using System.Linq;
+using System.Text.Json;
 
 namespace FoodStreetGuide;
 
 public partial class MainPage : ContentPage
 {
-    private readonly DatabaseService _db;
     private readonly LocationService _locationService = new();
 
     private List<Poi> _poiList = new();
     private int _currentPoiId = -1;
     private CancellationTokenSource? _speechCts;
 
-    public MainPage(DatabaseService db)
+    public MainPage()
     {
         InitializeComponent();
-        _db = db;
     }
 
     protected override async void OnAppearing()
     {
         base.OnAppearing();
 
-        await _db.SeedDataAsync();
-        _poiList = await _db.GetAllPoiAsync();
-        PoiList.ItemsSource = _poiList;
+        // 🔥 TỰ ĐỘNG UPDATE NẾU CÓ MẠNG
+        if (Connectivity.Current.NetworkAccess == NetworkAccess.Internet)
+        {
+            await AutoUpdateAsync();
+        }
 
-        // Load pin lên map
+        await LoadDataAsync();
+        LoadMapPins();
+
+        var status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
+
+        if (status != PermissionStatus.Granted)
+        {
+            await DisplayAlert("Lỗi", "Bạn chưa cấp quyền vị trí", "OK");
+            return;
+        }
+
+        Dispatcher.StartTimer(TimeSpan.FromSeconds(3), () =>
+        {
+            _ = CheckLocationAsync();
+            return true;
+        });
+    }
+
+    // 🔥 AUTO UPDATE
+    private async Task AutoUpdateAsync()
+    {
+        try
+        {
+            var apiService = new ApiService();
+            var pois = await apiService.GetPoisAsync();
+
+            if (pois == null || pois.Count == 0)
+                return;
+
+            string json = JsonSerializer.Serialize(pois);
+
+            string filePath = Path.Combine(FileSystem.AppDataDirectory, "pois.json");
+
+            await File.WriteAllTextAsync(filePath, json);
+
+            Debug.WriteLine("Auto update thành công");
+        }
+        catch
+        {
+            Debug.WriteLine("Không update được, dùng dữ liệu cũ");
+        }
+    }
+
+    // 🔥 LOAD DATA (Ưu tiên file local)
+    private async Task LoadDataAsync()
+    {
+        string filePath = Path.Combine(FileSystem.AppDataDirectory, "pois.json");
+
+        if (File.Exists(filePath))
+        {
+            string json = await File.ReadAllTextAsync(filePath);
+
+            _poiList = JsonSerializer.Deserialize<List<Poi>>(json,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                }) ?? new List<Poi>();
+        }
+        else
+        {
+            using var stream = await FileSystem.OpenAppPackageFileAsync("poi.json");
+            using var reader = new StreamReader(stream);
+            string json = await reader.ReadToEndAsync();
+
+            _poiList = JsonSerializer.Deserialize<List<Poi>>(json,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                }) ?? new List<Poi>();
+        }
+
+        PoiList.ItemsSource = _poiList;
+    }
+
+    // 🔥 LOAD PIN LÊN MAP
+    private void LoadMapPins()
+    {
         MyMap.Pins.Clear();
 
         foreach (var poi in _poiList)
@@ -46,22 +123,9 @@ public partial class MainPage : ContentPage
 
             MyMap.Pins.Add(pin);
         }
-
-        var status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
-
-        if (status != PermissionStatus.Granted)
-        {
-            await DisplayAlertAsync("Lỗi", "Bạn chưa cấp quyền vị trí", "OK");
-            return;
-        }
-
-        Dispatcher.StartTimer(TimeSpan.FromSeconds(3), () =>
-        {
-            _ = CheckLocationAsync();
-            return true;
-        });
     }
 
+    // 🔥 CHECK LOCATION
     private async Task CheckLocationAsync()
     {
         var location = await _locationService.GetCurrentLocationAsync();
@@ -70,7 +134,6 @@ public partial class MainPage : ContentPage
 
         LatLabel.Text = $"Latitude: {location.Latitude:F6}";
 
-        // Tính khoảng cách
         foreach (var poi in _poiList)
         {
             poi.DistanceKm = DistanceHelper.CalculateDistanceKm(
@@ -80,7 +143,6 @@ public partial class MainPage : ContentPage
                 poi.Longitude);
         }
 
-        // Sắp xếp gần → xa
         _poiList = _poiList
             .OrderBy(p => p.DistanceKm)
             .ToList();
@@ -125,4 +187,5 @@ public partial class MainPage : ContentPage
             _speechCts?.Cancel();
         }
     }
+
 }
