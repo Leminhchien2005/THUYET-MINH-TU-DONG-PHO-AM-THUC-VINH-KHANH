@@ -6,13 +6,13 @@ using Microsoft.Maui.Maps;
 using Microsoft.Maui.Media;
 using Microsoft.Maui.Networking;
 using System.Diagnostics;
-using System.Text.Json;
 
 namespace FoodStreetGuide;
 
 public partial class MainPage : ContentPage
 {
     private readonly LocationService _locationService = new();
+    private readonly DatabaseService _database = new();
 
     private List<Poi> _poiList = new();
     private int _currentPoiId = -1;
@@ -27,15 +27,22 @@ public partial class MainPage : ContentPage
     {
         base.OnAppearing();
 
-        // 🔥 TỰ ĐỘNG UPDATE NẾU CÓ MẠNG
+        // 🔥 Khởi tạo SQLite
+        await _database.Init();
+
+        // 🔥 Nếu có mạng thì update từ API
         if (Connectivity.Current.NetworkAccess == NetworkAccess.Internet)
         {
             await AutoUpdateAsync();
         }
 
+        // 🔥 Load dữ liệu từ SQLite
         await LoadDataAsync();
+
+        // 🔥 Hiển thị pin map
         LoadMapPins();
 
+        // 🔥 Xin quyền GPS
         var status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
 
         if (status != PermissionStatus.Granted)
@@ -44,6 +51,7 @@ public partial class MainPage : ContentPage
             return;
         }
 
+        // 🔥 Check vị trí mỗi 3 giây
         Dispatcher.StartTimer(TimeSpan.FromSeconds(3), () =>
         {
             _ = CheckLocationAsync();
@@ -51,63 +59,37 @@ public partial class MainPage : ContentPage
         });
     }
 
-    // 🔥 AUTO UPDATE
+    // 🔥 Update dữ liệu từ Web API
     private async Task AutoUpdateAsync()
     {
         try
         {
             var apiService = new ApiService();
+
             var pois = await apiService.GetPoisAsync();
 
             if (pois == null || pois.Count == 0)
                 return;
 
-            string json = JsonSerializer.Serialize(pois);
+            await _database.ReplaceAllDataAsync(pois);
 
-            string filePath = Path.Combine(FileSystem.AppDataDirectory, "pois.json");
-
-            await File.WriteAllTextAsync(filePath, json);
-
-            Debug.WriteLine("Auto update thành công");
+            Debug.WriteLine("Update dữ liệu từ API thành công");
         }
-        catch
+        catch (Exception ex)
         {
-            Debug.WriteLine("Không update được, dùng dữ liệu cũ");
+            Debug.WriteLine($"Lỗi update API: {ex.Message}");
         }
     }
 
-    // 🔥 LOAD DATA (Ưu tiên file local)
+    // 🔥 Load dữ liệu từ SQLite
     private async Task LoadDataAsync()
     {
-        string filePath = Path.Combine(FileSystem.AppDataDirectory, "pois.json");
-
-        if (File.Exists(filePath))
-        {
-            string json = await File.ReadAllTextAsync(filePath);
-
-            _poiList = JsonSerializer.Deserialize<List<Poi>>(json,
-                new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                }) ?? new List<Poi>();
-        }
-        else
-        {
-            using var stream = await FileSystem.OpenAppPackageFileAsync("poi.json");
-            using var reader = new StreamReader(stream);
-            string json = await reader.ReadToEndAsync();
-
-            _poiList = JsonSerializer.Deserialize<List<Poi>>(json,
-                new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                }) ?? new List<Poi>();
-        }
+        _poiList = await _database.GetAllPoiAsync();
 
         PoiList.ItemsSource = _poiList;
     }
 
-    // 🔥 LOAD PIN LÊN MAP
+    // 🔥 Load pin lên map
     private void LoadMapPins()
     {
         MyMap.Pins.Clear();
@@ -125,10 +107,11 @@ public partial class MainPage : ContentPage
         }
     }
 
-    // 🔥 CHECK LOCATION
+    // 🔥 Kiểm tra khoảng cách
     private async Task CheckLocationAsync()
     {
         var location = await _locationService.GetCurrentLocationAsync();
+
         if (location == null)
             return;
 
@@ -151,6 +134,7 @@ public partial class MainPage : ContentPage
         PoiList.ItemsSource = _poiList;
 
         var nearestPoi = _poiList.FirstOrDefault();
+
         if (nearestPoi == null)
             return;
 
@@ -187,5 +171,4 @@ public partial class MainPage : ContentPage
             _speechCts?.Cancel();
         }
     }
-
 }

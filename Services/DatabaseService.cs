@@ -1,8 +1,6 @@
-﻿using System.IO;
-using Microsoft.Maui.Storage;
-using SQLite;
+﻿using SQLite;
 using FoodStreetGuide.Models;
-using System.Text.Json;
+using Microsoft.Maui.Storage;
 
 namespace FoodStreetGuide.Services
 {
@@ -10,45 +8,67 @@ namespace FoodStreetGuide.Services
     {
         private SQLiteAsyncConnection? _database;
 
+        // 🔥 Khởi tạo database
         public async Task Init()
         {
             if (_database != null)
                 return;
 
             string dbPath = Path.Combine(FileSystem.AppDataDirectory, "foodstreet.db3");
+
             _database = new SQLiteAsyncConnection(dbPath);
 
-            // Tạo bảng theo model mới (có ImageUrl)
+            // 🔥 Tạo bảng Poi nếu chưa có
             await _database.CreateTableAsync<Poi>();
         }
 
+        // 🔥 Lấy toàn bộ POI
         public async Task<List<Poi>> GetAllPoiAsync()
         {
             await Init();
             return await _database!.Table<Poi>().ToListAsync();
         }
 
-        public async Task SeedDataAsync()
+        // 🔥 Thêm 1 POI
+        public async Task AddPoiAsync(Poi poi)
+        {
+            await Init();
+            await _database!.InsertAsync(poi);
+        }
+
+        // 🔥 Thêm nhiều POI
+        public async Task AddPoisAsync(List<Poi> pois)
+        {
+            await Init();
+            await _database!.InsertAllAsync(pois);
+        }
+
+        // 🔥 Xóa toàn bộ POI
+        public async Task DeleteAllPoiAsync()
+        {
+            await Init();
+            await _database!.DeleteAllAsync<Poi>();
+        }
+
+        // 🔥 Update 1 POI
+        public async Task UpdatePoiAsync(Poi poi)
+        {
+            await Init();
+            await _database!.UpdateAsync(poi);
+        }
+
+        // 🔥 Thay toàn bộ dữ liệu (dùng khi update từ API)
+        public async Task ReplaceAllDataAsync(List<Poi> pois)
         {
             await Init();
 
-            // 🔥 Xoá dữ liệu cũ
+            // Xóa dữ liệu cũ
             await _database!.DeleteAllAsync<Poi>();
 
-            using var stream = await FileSystem.OpenAppPackageFileAsync("poi.json");
-            using var reader = new StreamReader(stream);
-            var json = await reader.ReadToEndAsync();
-
-            var options = new JsonSerializerOptions
+            // Thêm dữ liệu mới
+            if (pois != null && pois.Count > 0)
             {
-                PropertyNameCaseInsensitive = true
-            };
-
-            var poiList = JsonSerializer.Deserialize<List<Poi>>(json, options);
-
-            if (poiList != null && poiList.Count > 0)
-            {
-                await _database.InsertAllAsync(poiList);
+                await _database.InsertAllAsync(pois);
             }
         }
     }
