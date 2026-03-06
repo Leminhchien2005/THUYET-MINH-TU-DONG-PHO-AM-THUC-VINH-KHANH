@@ -23,7 +23,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup 
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'a2da3451-14e2-11f1-9029-f8cf525edba1:1-83';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'a2da3451-14e2-11f1-9029-f8cf525edba1:1-88';
 
 --
 -- Table structure for table `__efmigrationshistory`
@@ -65,7 +65,7 @@ CREATE TABLE `pois` (
   `Description` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
   `ImageUrl` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
   PRIMARY KEY (`Id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -74,7 +74,7 @@ CREATE TABLE `pois` (
 
 LOCK TABLES `pois` WRITE;
 /*!40000 ALTER TABLE `pois` DISABLE KEYS */;
-INSERT INTO `pois` VALUES (1,'mk11',10.123,106.456,500,'Quán pizza ngon',NULL),(2,'mkx',2,3,4,'5','6');
+INSERT INTO `pois` VALUES (1,'Ốc Oanh',10.760972,106.704676,120,'Quán ốc nổi tiếng ở Vĩnh Khánh','https://example.com/oc-oanh.jpg'),(2,'Phá Lấu Cô Thảo',10.756616,106.7073,100,'Quán phá lấu đậm vị miền Nam','https://example.com/pha-lau.jpg'),(3,'Cháo Ếch Singapore',10.761125,106.705831,110,'Cháo ếch nấu trong nồi đất','https://example.com/chao-ech.jpg'),(4,'Bánh Flan Ngọc Nga',10.762312,106.703169,100,'Flan caramel nổi tiếng','https://example.com/flan.jpg'),(5,'Lẩu Gà Lá É',10.760846,106.706715,150,'Lẩu gà lá é đặc trưng','https://example.com/lau-ga.jpg'),(6,'Cơm Cháy Kho Quẹt',10.760463,106.703812,120,'Món ăn dân dã miền Nam','https://example.com/com-chay.jpg'),(7,'Bánh Tráng Nướng Cô Phượng',10.761449,106.702045,100,'Bánh tráng nướng giòn','https://example.com/banh-trang.jpg'),(8,'Bobapop Vĩnh Khánh',10.76021,106.70548,100,'Trà sữa nổi tiếng','https://example.com/bobapop.jpg');
 /*!40000 ALTER TABLE `pois` ENABLE KEYS */;
 UNLOCK TABLES;
 SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;
@@ -88,4 +88,4 @@ SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-03-06  7:39:07
+-- Dump completed on 2026-03-06 18:04:49
