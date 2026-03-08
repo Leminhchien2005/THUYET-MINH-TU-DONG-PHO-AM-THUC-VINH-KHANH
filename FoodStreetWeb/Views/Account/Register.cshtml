@@ -1,0 +1,27 @@
+﻿<h2>Đăng ký</h2>
+
+<form method="post">
+
+    <input name="email" placeholder="Email" />
+
+    <br />
+
+    <input name="password" type="password" placeholder="Password" />
+
+    <br />
+
+    <select name="role">
+        <option value="RestaurantOwner">Chủ nhà hàng</option>
+        <option value="Admin">Admin</option>
+    </select>
+
+    <br />
+
+    <button type="submit">Đăng ký</button>
+
+</form>
+
+@if (ViewBag.Error != null)
+{
+    <p>@ViewBag.Error</p>
+}

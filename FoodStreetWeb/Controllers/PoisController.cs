@@ -1,10 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 using FoodStreetWeb.Data;
 using FoodStreetWeb.Models;
 
 namespace FoodStreetWeb.Controllers
 {
+    [Authorize(Roles = "Admin")]
     public class PoisController : Controller
     {
         private readonly AppDbContext _context;
