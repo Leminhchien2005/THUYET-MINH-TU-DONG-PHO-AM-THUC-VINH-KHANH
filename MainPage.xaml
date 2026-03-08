@@ -7,96 +7,127 @@
 
     <Grid>
 
-        <!-- GOOGLE MAP -->
-        <maps:Map x:Name="MyMap"
-                  IsShowingUser="True"
-                  MapType="Street" />
+        <!-- MAP -->
+        <maps:Map
+            x:Name="MyMap"
+            IsShowingUser="True"
+            MapType="Street"/>
 
-        <!-- LATITUDE LABEL -->
-        <Label x:Name="LatLabel"
-               Text="Latitude: "
-               FontSize="16"
-               Margin="20,110,0,0"
-               VerticalOptions="Start"
-               ZIndex="2"/>
+        <!-- SEARCH -->
+        <Border
+            Margin="15,50,15,0"
+            HeightRequest="47"
+            BackgroundColor="White"
+            StrokeThickness="0"
+            StrokeShape="RoundRectangle 30"
+            VerticalOptions="Start"
+            ZIndex="5">
 
-        <!-- SEARCH BAR -->
-        <Border BackgroundColor="White"
-                Padding="10"
-                HeightRequest="55"
-                Margin="20,50,20,0"
-                VerticalOptions="Start"
-                StrokeThickness="0"
-                StrokeShape="RoundRectangle 30"
-                ZIndex="2">
+            <Grid ColumnDefinitions="40,*">
 
-            <Entry x:Name="SearchEntry"
-                   Placeholder="Tìm quán ăn..."
-                   TextColor="Black"
-                   BackgroundColor="Transparent"/>
+                <Image
+                    Source="search.png"
+                    HeightRequest="20"
+                    WidthRequest="20"
+                    VerticalOptions="Center"
+                    HorizontalOptions="Center"/>
+
+                <Entry
+                    x:Name="SearchEntry"
+                    Grid.Column="1"
+                    Placeholder="Tìm quán ăn..."
+                    TextColor="Black"
+                    BackgroundColor="Transparent"
+                    TextChanged="SearchBar_TextChanged"/>
+
+            </Grid>
+
         </Border>
 
+        <!-- GPS INFO -->
+        <Label
+            x:Name="LatLabel"
+            Margin="20,120,0,0"
+            TextColor="black"
+            FontSize="12"
+            ZIndex="5"/>
 
         <!-- BOTTOM PANEL -->
-        <Border BackgroundColor="White"
-                StrokeThickness="0"
-                StrokeShape="RoundRectangle 30,30,0,0"
-                Padding="20"
-                HeightRequest="240"
-                VerticalOptions="End"
-                ZIndex="1">
+        <Border
+    x:Name="BottomPanel"
+    BackgroundColor="White"
+    StrokeThickness="0"
+    StrokeShape="RoundRectangle 30,30,0,0"
+    VerticalOptions="Fill"
+    Padding="15"
+    ZIndex="10">
 
-            <VerticalStackLayout>
+            <Border.GestureRecognizers>
+                <PanGestureRecognizer PanUpdated="OnPanelPan"/>
+            </Border.GestureRecognizers>
 
-                <Label Text="Food Street Guide"
-                       TextColor="#1C1C1E"
-                       FontSize="20"
-                       FontAttributes="Bold"/>
+            <Grid RowDefinitions="Auto,Auto,*">
 
-                <CollectionView x:Name="PoiList"
-                                HeightRequest="170">
+                <!-- HANDLE -->
+                <BoxView
+            HeightRequest="5"
+            WidthRequest="60"
+            Color="#CCC"
+            HorizontalOptions="Center"
+            CornerRadius="3"/>
+
+                <!-- TITLE -->
+                <Label
+            Grid.Row="1"
+            Text="Quán gần bạn"
+            FontSize="18"
+            FontAttributes="Bold"
+            Margin="0,10"/>
+
+                <!-- LIST -->
+                <CollectionView
+            Grid.Row="2"
+            x:Name="PoiList"
+            SelectionMode="Single"
+            SelectionChanged="PoiList_SelectionChanged">
 
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
 
-                            <Border BackgroundColor="White"
-                                    StrokeThickness="0"
-                                    StrokeShape="RoundRectangle 15"
-                                    Padding="10"
-                                    Margin="0,6">
+                            <Border
+                        Padding="10"
+                        Margin="0,6"
+                        StrokeThickness="0"
+                        StrokeShape="RoundRectangle 15"
+                        BackgroundColor="#F7F7F7">
 
-                                <Border.Shadow>
-                                    <Shadow Brush="Black"
-                                            Offset="0,4"
-                                            Radius="10"
-                                            Opacity="0.3"/>
-                                </Border.Shadow>
+                                <Grid ColumnDefinitions="90,*">
 
-                                <Grid ColumnDefinitions="90,*"
-                                      ColumnSpacing="10">
+                                    <Image
+                                Source="{Binding ImageUrl}"
+                                HeightRequest="80"
+                                WidthRequest="80"
+                                Aspect="AspectFill"/>
 
-                                    <Image Source="{Binding ImageUrl}"
-                                           HeightRequest="80"
-                                           WidthRequest="80"
-                                           Aspect="AspectFill"
-                                           Grid.Column="0" />
+                                    <VerticalStackLayout
+                                Grid.Column="1"
+                                Margin="10,0">
 
-                                    <VerticalStackLayout Grid.Column="1"
-                                                         Spacing="4">
+                                        <Label
+                                    Text="{Binding Name}"
+                                    FontAttributes="Bold"
+                                    FontSize="14"/>
 
-                                        <Label Text="{Binding Name}"
-                                               TextColor="#2C2C2E"
-                                               FontAttributes="Bold"
-                                               FontSize="14"/>
+                                        <Label
+                                    Text="{Binding Description}"
+                                    FontSize="12"
+                                    TextColor="Gray"
+                                    LineBreakMode="TailTruncation"/>
 
-                                        <Label Text="{Binding Description}"
-                                               TextColor="Gray"
-                                               FontSize="12"
-                                               LineBreakMode="TailTruncation"/>
-
-                                        <Label Text="{Binding DistanceKm, StringFormat='Khoảng cách: {0:F2} km'}"
-                                               TextColor="#007AFF"
-                                               FontSize="12"/>
+                                        <Label
+                                    Text="{Binding DistanceKm, StringFormat='Khoảng cách {0:F2} km'}"
+                                    TextColor="#007AFF"
+                                    FontSize="12"/>
 
                                     </VerticalStackLayout>
 
@@ -109,7 +140,7 @@
 
                 </CollectionView>
 
-            </VerticalStackLayout>
+            </Grid>
 
         </Border>
 

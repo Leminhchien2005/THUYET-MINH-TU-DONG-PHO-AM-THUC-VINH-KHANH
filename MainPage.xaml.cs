@@ -1,9 +1,7 @@
 using FoodStreetGuide.Models;
 using FoodStreetGuide.Services;
-using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Maps;
-using Microsoft.Maui.Media;
 using Microsoft.Maui.Networking;
 using System.Diagnostics;
 
@@ -15,8 +13,10 @@ public partial class MainPage : ContentPage
     private readonly DatabaseService _database = new();
 
     private List<Poi> _poiList = new();
-    private int _currentPoiId = -1;
-    private CancellationTokenSource? _speechCts;
+
+    private Location? _lastLocation;
+
+    double panelStart;
 
     public MainPage()
     {
@@ -27,22 +27,23 @@ public partial class MainPage : ContentPage
     {
         base.OnAppearing();
 
-        // 🔥 Khởi tạo SQLite
+        BottomPanel.TranslationY = 280;
+
         await _database.Init();
 
-        // 🔥 Nếu có mạng thì update từ API
+        // Nếu có internet → cập nhật dữ liệu từ API
         if (Connectivity.Current.NetworkAccess == NetworkAccess.Internet)
         {
             await AutoUpdateAsync();
         }
 
-        // 🔥 Load dữ liệu từ SQLite
+        // Sau đó load dữ liệu từ SQLite
         await LoadDataAsync();
 
-        // 🔥 Hiển thị pin map
+        // Hiện pin lên map
         LoadMapPins();
 
-        // 🔥 Xin quyền GPS
+        // Xin quyền vị trí
         var status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
 
         if (status != PermissionStatus.Granted)
@@ -51,7 +52,20 @@ public partial class MainPage : ContentPage
             return;
         }
 
-        // 🔥 Check vị trí mỗi 3 giây
+        var location = await _locationService.GetCurrentLocationAsync();
+
+        if (location != null)
+        {
+            _lastLocation = location;
+
+            MyMap.MoveToRegion(
+                MapSpan.FromCenterAndRadius(
+                    new Location(location.Latitude, location.Longitude),
+                    Distance.FromKilometers(1)
+                )
+            );
+        }
+
         Dispatcher.StartTimer(TimeSpan.FromSeconds(3), () =>
         {
             _ = CheckLocationAsync();
@@ -59,7 +73,7 @@ public partial class MainPage : ContentPage
         });
     }
 
-    // 🔥 Update dữ liệu từ Web API
+    // LẤY DỮ LIỆU API → SQLITE
     private async Task AutoUpdateAsync()
     {
         try
@@ -68,28 +82,86 @@ public partial class MainPage : ContentPage
 
             var pois = await apiService.GetPoisAsync();
 
-            if (pois == null || pois.Count == 0)
+            Debug.WriteLine("========== API TEST ==========");
+
+            if (pois == null)
+            {
+                Debug.WriteLine("API RETURN NULL");
+                await DisplayAlert("API TEST", "API NULL", "OK");
                 return;
+            }
+
+            Debug.WriteLine("API COUNT: " + pois.Count);
+
+            await DisplayAlertAsync("API TEST", "API Count: " + pois.Count, "OK");
+
+            foreach (var p in pois)
+            {
+                Debug.WriteLine("API POI: " + p.Name);
+            }
 
             await _database.ReplaceAllDataAsync(pois);
 
-            Debug.WriteLine("Update dữ liệu từ API thành công");
+            Debug.WriteLine("========== SQLITE TEST ==========");
+
+            var sqliteList = await _database.GetAllPoiAsync();
+
+            Debug.WriteLine("SQLITE COUNT: " + sqliteList.Count);
+
+            foreach (var p in sqliteList)
+            {
+                Debug.WriteLine("SQLITE POI: " + p.Name);
+            }
+
+            await DisplayAlertAsync("SQLITE TEST", "SQLite Count: " + sqliteList.Count, "OK");
+
+
+            _poiList = sqliteList;
+
+            PoiList.ItemsSource = _poiList;
+
+            Debug.WriteLine("========== UI TEST ==========");
+            Debug.WriteLine("UI COUNT: " + _poiList.Count);
+
+            LoadMapPins();
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Lỗi update API: {ex.Message}");
+            Debug.WriteLine("ERROR: " + ex.Message);
+            await DisplayAlert("ERROR", ex.Message, "OK");
         }
     }
 
-    // 🔥 Load dữ liệu từ SQLite
+    // LOAD SQLITE → LIST
     private async Task LoadDataAsync()
     {
         _poiList = await _database.GetAllPoiAsync();
 
+        if (_poiList == null)
+            _poiList = new List<Poi>();
+
+        if (_poiList.Count == 0)
+        {
+            var poi = new Poi
+            {
+                Name = "Bún bò Huế",
+                Description = "Quán nổi tiếng",
+                Latitude = 10.762622,
+                Longitude = 106.660172
+            };
+
+            await _database.AddPoiAsync(poi);
+
+            _poiList = await _database.GetAllPoiAsync();
+        }
+
+        PoiList.ItemsSource = null;
         PoiList.ItemsSource = _poiList;
+
+        Debug.WriteLine("POI COUNT: " + _poiList.Count);
     }
 
-    // 🔥 Load pin lên map
+    // HIỆN PIN TRÊN MAP
     private void LoadMapPins()
     {
         MyMap.Pins.Clear();
@@ -107,13 +179,27 @@ public partial class MainPage : ContentPage
         }
     }
 
-    // 🔥 Kiểm tra khoảng cách
-    private async Task CheckLocationAsync()
+    // CẬP NHẬT VỊ TRÍ
+    async Task CheckLocationAsync()
     {
         var location = await _locationService.GetCurrentLocationAsync();
 
         if (location == null)
             return;
+
+        if (_lastLocation != null)
+        {
+            var distance = Location.CalculateDistance(
+                _lastLocation,
+                location,
+                DistanceUnits.Kilometers
+            ) * 1000;
+
+            if (distance < 10)
+                return;
+        }
+
+        _lastLocation = location;
 
         LatLabel.Text = $"Latitude: {location.Latitude:F6}";
 
@@ -133,42 +219,72 @@ public partial class MainPage : ContentPage
         PoiList.ItemsSource = null;
         PoiList.ItemsSource = _poiList;
 
-        var nearestPoi = _poiList.FirstOrDefault();
+        LoadMapPins();
+    }
 
-        if (nearestPoi == null)
+    // CLICK QUÁN → ZOOM MAP
+    void PoiList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var poi = e.CurrentSelection.FirstOrDefault() as Poi;
+
+        if (poi == null)
             return;
 
-        double radiusKm = nearestPoi.Radius / 1000.0;
+        MyMap.MoveToRegion(
+            MapSpan.FromCenterAndRadius(
+                new Location(poi.Latitude, poi.Longitude),
+                Distance.FromKilometers(0.5)
+            )
+        );
+    }
 
-        if (nearestPoi.DistanceKm <= radiusKm)
+    // SEARCH
+    void SearchBar_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        string keyword = e.NewTextValue?.ToLower() ?? "";
+
+        var result = _poiList
+            .Where(p => (p.Name ?? "").ToLower().Contains(keyword))
+            .ToList();
+
+        PoiList.ItemsSource = null;
+        PoiList.ItemsSource = result;
+    }
+
+    // DRAG PANEL
+    async void OnPanelPan(object sender, PanUpdatedEventArgs e)
+    {
+        double full = 0;
+        double closed = this.Height - 350;
+
+        switch (e.StatusType)
         {
-            if (_currentPoiId != nearestPoi.Id)
-            {
-                _currentPoiId = nearestPoi.Id;
+            case GestureStatus.Started:
+                panelStart = BottomPanel.TranslationY;
+                break;
 
-                _speechCts?.Cancel();
-                _speechCts = new CancellationTokenSource();
+            case GestureStatus.Running:
 
-                if (!string.IsNullOrEmpty(nearestPoi.Description))
-                {
-                    try
-                    {
-                        await TextToSpeech.SpeakAsync(
-                            $"Bạn đang ở gần {nearestPoi.Name}. {nearestPoi.Description}",
-                            cancelToken: _speechCts.Token
-                        );
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        Debug.WriteLine("Speech bị ngắt");
-                    }
-                }
-            }
-        }
-        else
-        {
-            _currentPoiId = -1;
-            _speechCts?.Cancel();
+                double newY = panelStart + e.TotalY;
+
+                if (newY < full)
+                    newY = full;
+
+                if (newY > closed)
+                    newY = closed;
+
+                BottomPanel.TranslationY = newY;
+
+                break;
+
+            case GestureStatus.Completed:
+
+                if (BottomPanel.TranslationY < closed / 2)
+                    await BottomPanel.TranslateToAsync(0, full, 200);
+                else
+                    await BottomPanel.TranslateToAsync(0, closed, 200);
+
+                break;
         }
     }
 }

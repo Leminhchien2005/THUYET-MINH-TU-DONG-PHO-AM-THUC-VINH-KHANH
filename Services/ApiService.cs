@@ -10,7 +10,8 @@ public class ApiService
     public ApiService()
     {
         _httpClient = new HttpClient();
-        _httpClient.BaseAddress = new Uri("http://10.0.2.2:5057/");
+        _httpClient.BaseAddress = new Uri("http://10.0.2.2:5057/");// máy ảo Android sử dụng
+        //_httpClient.BaseAddress = new Uri("http://192.168.1.19:5057/");// máy thật sử dụng
     }
 
     public async Task<List<Poi>> GetPoisAsync()
