@@ -3,9 +3,17 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace FoodStreetWeb.Models
 {
+    // trạng thái POI
+    public enum PoiStatus
+    {
+        Pending,   // chờ admin duyệt
+        Approved,  // đã duyệt
+        Rejected   // bị từ chối
+    }
+
     public class Poi
     {
-        [Key] // tương đương PrimaryKey
+        [Key]
         public int Id { get; set; }
 
         public string? Name { get; set; }
@@ -14,15 +22,28 @@ namespace FoodStreetWeb.Models
 
         public double Longitude { get; set; }
 
-        // Bán kính kích hoạt (đơn vị: mét)
+        // bán kính kích hoạt (mét)
         public double Radius { get; set; }
 
         public string? Description { get; set; }
 
         public string? ImageUrl { get; set; }
 
-        // Không lưu vào DB
-        [NotMapped] // tương đương Ignore
+        // =========================
+        // CHỦ NHÀ HÀNG
+        // =========================
+        public string? OwnerId { get; set; }
+
+        [ForeignKey("OwnerId")]
+        public ApplicationUser? Owner { get; set; }
+
+        // =========================
+        // TRẠNG THÁI DUYỆT
+        // =========================
+        public PoiStatus Status { get; set; } = PoiStatus.Pending;
+
+        // không lưu DB
+        [NotMapped]
         public double DistanceKm { get; set; }
     }
 }

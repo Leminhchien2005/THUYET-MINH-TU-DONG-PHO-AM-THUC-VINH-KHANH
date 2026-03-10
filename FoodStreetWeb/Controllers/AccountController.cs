@@ -1,44 +1,63 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using FoodStreetWeb.Models;
 
 namespace FoodStreetWeb.Controllers
 {
     public class AccountController : Controller
     {
-        private readonly UserManager<IdentityUser> _userManager;
-        private readonly SignInManager<IdentityUser> _signInManager;
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly SignInManager<ApplicationUser> _signInManager;
 
         public AccountController(
-            UserManager<IdentityUser> userManager,
-            SignInManager<IdentityUser> signInManager)
+            UserManager<ApplicationUser> userManager,
+            SignInManager<ApplicationUser> signInManager)
         {
             _userManager = userManager;
             _signInManager = signInManager;
         }
 
+        // =========================
         // Trang đăng ký
+        // =========================
         public IActionResult Register()
         {
             return View();
         }
 
+        // =========================
         // Xử lý đăng ký
+        // =========================
         [HttpPost]
-        public async Task<IActionResult> Register(string email, string password, string role)
+        public async Task<IActionResult> Register(
+            string FullName,
+            string Email,
+            string PhoneNumber,
+            string Password,
+            string ConfirmPassword)
         {
-            var user = new IdentityUser
+            // kiểm tra mật khẩu
+            if (Password != ConfirmPassword)
             {
-                UserName = email,
-                Email = email
+                ViewBag.Error = "Mật khẩu không khớp";
+                return View();
+            }
+
+            var user = new ApplicationUser
+            {
+                UserName = Email,
+                Email = Email,
+                PhoneNumber = PhoneNumber,
+                FullName = FullName
             };
 
-            var result = await _userManager.CreateAsync(user, password);
+            var result = await _userManager.CreateAsync(user, Password);
 
             if (result.Succeeded)
             {
-                await _userManager.AddToRoleAsync(user, role);
+                // mặc định role chủ nhà hàng
+                await _userManager.AddToRoleAsync(user, "RestaurantOwner");
 
-                // thông báo thành công
                 TempData["Success"] = "Đăng ký thành công";
 
                 return RedirectToAction("Login");
@@ -48,43 +67,59 @@ namespace FoodStreetWeb.Controllers
             return View();
         }
 
-        // Trang login
+        // =========================
+        // Trang Login
+        // =========================
         public IActionResult Login()
         {
             return View();
         }
 
-        // Xử lý login
+        // =========================
+        // Xử lý Login
+        // =========================
         [HttpPost]
-        public async Task<IActionResult> Login(string email, string password)
+        public async Task<IActionResult> Login(string Email, string Password)
         {
-            var result = await _signInManager.PasswordSignInAsync(email, password, false, false);
+            var result = await _signInManager.PasswordSignInAsync(
+                Email,
+                Password,
+                false,
+                false);
 
             if (result.Succeeded)
             {
-                var user = await _userManager.FindByEmailAsync(email);
+                var user = await _userManager.FindByEmailAsync(Email);
 
-                // nếu admin
-                if (await _userManager.IsInRoleAsync(user, "Admin"))
+                if (user != null)
                 {
-                    return RedirectToAction("AdminDashboard", "Admin");
+                    // Admin
+                    if (await _userManager.IsInRoleAsync(user, "Admin"))
+                    {
+                        return RedirectToAction("AdminDashboard", "Admin");
+                    }
+
+                    // Chủ nhà hàng
+                    if (await _userManager.IsInRoleAsync(user, "RestaurantOwner"))
+                    {
+                        return RedirectToAction("OwnerDashboard", "Owner");
+                    }
                 }
 
-                // nếu chủ nhà hàng
-                if (await _userManager.IsInRoleAsync(user, "RestaurantOwner"))
-                {
-                    return RedirectToAction("OwnerDashboard", "Owner");
-                }
+                return RedirectToAction("Index", "Home");
             }
 
             ViewBag.Error = "Sai tài khoản hoặc mật khẩu";
             return View();
         }
 
-        // đăng xuất
+        // =========================
+        // Logout
+        // =========================
         public async Task<IActionResult> Logout()
         {
             await _signInManager.SignOutAsync();
+
             return RedirectToAction("Login");
         }
     }

@@ -2,26 +2,21 @@
 
 <form method="post">
 
-    <input name="email" placeholder="Email" />
-
+    <input name="FullName" placeholder="Họ và tên" />
     <br />
 
-    <input name="password" type="password" placeholder="Password" />
-
+    <input name="Email" placeholder="Email" />
     <br />
 
-    <select name="role">
-        <option value="RestaurantOwner">Chủ nhà hàng</option>
-        <option value="Admin">Admin</option>
-    </select>
+    <input name="PhoneNumber" placeholder="Số điện thoại" />
+    <br />
 
+    <input name="Password" type="password" placeholder="Mật khẩu" />
+    <br />
+
+    <input name="ConfirmPassword" type="password" placeholder="Nhập lại mật khẩu" />
     <br />
 
     <button type="submit">Đăng ký</button>
 
 </form>
-
-@if (ViewBag.Error != null)
-{
-    <p>@ViewBag.Error</p>
-}

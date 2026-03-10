@@ -1,10 +1,13 @@
 using FoodStreetWeb.Data;
+using FoodStreetWeb.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// MVC
 builder.Services.AddControllersWithViews();
+
 
 // MySQL
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -16,7 +19,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     ));
 
 // Identity
-builder.Services.AddIdentity<IdentityUser, IdentityRole>()
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
@@ -37,6 +40,8 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+
+// Error handling
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -53,13 +58,16 @@ app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 
+
+// Route MVC
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.MapControllers();
 
-// Tạo role
+
+// Tạo Role mặc định
 using (var scope = app.Services.CreateScope())
 {
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();

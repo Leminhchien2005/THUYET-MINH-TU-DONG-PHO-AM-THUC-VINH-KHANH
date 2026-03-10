@@ -20,14 +20,19 @@ namespace FoodStreetWeb.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Poi>>> GetPois()
         {
-            return await _context.Pois.ToListAsync();
+            // chỉ trả POI đã được admin duyệt
+            return await _context.Pois
+                .Where(p => p.Status == PoiStatus.Approved)
+                .ToListAsync();
         }
 
         // GET: api/PoisApi/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Poi>> GetPoi(int id)
         {
-            var poi = await _context.Pois.FindAsync(id);
+            var poi = await _context.Pois
+                .Where(p => p.Status == PoiStatus.Approved)
+                .FirstOrDefaultAsync(p => p.Id == id);
 
             if (poi == null)
             {
