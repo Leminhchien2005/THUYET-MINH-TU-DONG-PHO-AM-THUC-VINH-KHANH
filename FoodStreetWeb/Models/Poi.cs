@@ -6,9 +6,10 @@ namespace FoodStreetWeb.Models
     // trạng thái POI
     public enum PoiStatus
     {
-        Pending,   // chờ admin duyệt
-        Approved,  // đã duyệt
-        Rejected   // bị từ chối
+        PendingCreate,   // chờ duyệt quán mới
+        PendingUpdate,   // chờ duyệt chỉnh sửa
+        Approved,        // đã duyệt
+        Rejected         // bị từ chối
     }
 
     public class Poi
@@ -40,7 +41,7 @@ namespace FoodStreetWeb.Models
         // =========================
         // TRẠNG THÁI DUYỆT
         // =========================
-        public PoiStatus Status { get; set; } = PoiStatus.Pending;
+        public PoiStatus Status { get; set; } = PoiStatus.PendingCreate;
 
         // không lưu DB
         [NotMapped]

@@ -18,15 +18,17 @@ namespace FoodStreetWeb.Controllers
         }
 
         // =========================
-        // Danh sách POI
+        // DANH SÁCH POI
         // =========================
         public async Task<IActionResult> Index()
         {
+            // Admin thấy tất cả
             if (User.IsInRole("Admin"))
             {
                 return View(await _context.Pois.ToListAsync());
             }
 
+            // Owner chỉ thấy quán của mình
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             var myPois = await _context.Pois
@@ -37,7 +39,7 @@ namespace FoodStreetWeb.Controllers
         }
 
         // =========================
-        // Create
+        // CREATE
         // =========================
         public IActionResult Create()
         {
@@ -54,8 +56,16 @@ namespace FoodStreetWeb.Controllers
 
                 poi.OwnerId = userId;
 
-                // luôn chờ duyệt
-                poi.Status = PoiStatus.Pending;
+                // Admin thêm → duyệt luôn
+                if (User.IsInRole("Admin"))
+                {
+                    poi.Status = PoiStatus.Approved;
+                }
+                else
+                {
+                    // Owner thêm → chờ duyệt quán mới
+                    poi.Status = PoiStatus.PendingCreate;
+                }
 
                 _context.Add(poi);
                 await _context.SaveChangesAsync();
@@ -67,7 +77,7 @@ namespace FoodStreetWeb.Controllers
         }
 
         // =========================
-        // Edit
+        // EDIT
         // =========================
         public async Task<IActionResult> Edit(int id)
         {
@@ -88,8 +98,24 @@ namespace FoodStreetWeb.Controllers
 
             if (ModelState.IsValid)
             {
-                // khi sửa phải chờ duyệt lại
-                poi.Status = PoiStatus.Pending;
+                var oldPoi = await _context.Pois.AsNoTracking()
+                    .FirstOrDefaultAsync(p => p.Id == id);
+
+                if (oldPoi == null)
+                    return NotFound();
+
+                // Admin sửa → duyệt luôn
+                if (User.IsInRole("Admin"))
+                {
+                    poi.Status = PoiStatus.Approved;
+                }
+                else
+                {
+                    // Owner sửa → chờ duyệt chỉnh sửa
+                    poi.Status = PoiStatus.PendingUpdate;
+                }
+
+                poi.OwnerId = oldPoi.OwnerId;
 
                 _context.Update(poi);
                 await _context.SaveChangesAsync();
@@ -101,7 +127,7 @@ namespace FoodStreetWeb.Controllers
         }
 
         // =========================
-        // Delete
+        // DELETE
         // =========================
         public async Task<IActionResult> Delete(int id)
         {
