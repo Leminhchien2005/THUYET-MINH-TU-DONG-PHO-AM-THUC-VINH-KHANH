@@ -23,7 +23,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup 
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'a2da3451-14e2-11f1-9029-f8cf525edba1:1-131';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'a2da3451-14e2-11f1-9029-f8cf525edba1:1-151';
 
 --
 -- Table structure for table `__efmigrationshistory`
@@ -45,7 +45,7 @@ CREATE TABLE `__efmigrationshistory` (
 
 LOCK TABLES `__efmigrationshistory` WRITE;
 /*!40000 ALTER TABLE `__efmigrationshistory` DISABLE KEYS */;
-INSERT INTO `__efmigrationshistory` VALUES ('20260228204202_Init','9.0.0'),('20260302002619_Init','9.0.0'),('20260308094940_IdentityInit','9.0.0'),('20260310000503_AddFullName','9.0.0'),('20260310001913_AddOwnerToPoi','9.0.0'),('20260310005900_InitIdentity','9.0.0'),('20260310030328_AddPoiStatus','9.0.0');
+INSERT INTO `__efmigrationshistory` VALUES ('20260228204202_Init','9.0.0'),('20260302002619_Init','9.0.0'),('20260308094940_IdentityInit','9.0.0'),('20260310000503_AddFullName','9.0.0'),('20260310001913_AddOwnerToPoi','9.0.0'),('20260310005900_InitIdentity','9.0.0'),('20260310030328_AddPoiStatus','9.0.0'),('20260311193901_AddPoiRequest','9.0.0'),('20260311195507_FixRadiusType','9.0.0');
 /*!40000 ALTER TABLE `__efmigrationshistory` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -251,6 +251,39 @@ LOCK TABLES `aspnetusertokens` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `poirequests`
+--
+
+DROP TABLE IF EXISTS `poirequests`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `poirequests` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `PoiId` int DEFAULT NULL,
+  `RequestType` int NOT NULL,
+  `OwnerId` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `Name` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `Latitude` double NOT NULL,
+  `Longitude` double NOT NULL,
+  `Radius` double NOT NULL,
+  `Description` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `ImageUrl` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `Status` int NOT NULL,
+  PRIMARY KEY (`Id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `poirequests`
+--
+
+LOCK TABLES `poirequests` WRITE;
+/*!40000 ALTER TABLE `poirequests` DISABLE KEYS */;
+INSERT INTO `poirequests` VALUES (1,NULL,0,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','Pizza ABC',10.123,106.456,500,'6767','6',2);
+/*!40000 ALTER TABLE `poirequests` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `pois`
 --
 
@@ -270,7 +303,7 @@ CREATE TABLE `pois` (
   PRIMARY KEY (`Id`),
   KEY `IX_Pois_OwnerId` (`OwnerId`),
   CONSTRAINT `FK_Pois_AspNetUsers_OwnerId` FOREIGN KEY (`OwnerId`) REFERENCES `aspnetusers` (`Id`)
-) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -293,4 +326,4 @@ SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-03-10 10:27:36
+-- Dump completed on 2026-03-12  7:22:12

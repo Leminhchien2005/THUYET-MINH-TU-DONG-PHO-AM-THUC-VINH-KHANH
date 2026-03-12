@@ -12,5 +12,7 @@ namespace FoodStreetWeb.Data
         }
 
         public DbSet<Poi> Pois { get; set; }
+
+        public DbSet<PoiRequest> PoiRequests { get; set; }
     }
 }

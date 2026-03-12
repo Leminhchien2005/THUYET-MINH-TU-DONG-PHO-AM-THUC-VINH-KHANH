@@ -22,13 +22,11 @@ namespace FoodStreetWeb.Controllers
         // =========================
         public async Task<IActionResult> Index()
         {
-            // Admin thấy tất cả
             if (User.IsInRole("Admin"))
             {
                 return View(await _context.Pois.ToListAsync());
             }
 
-            // Owner chỉ thấy quán của mình
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             var myPois = await _context.Pois
@@ -36,6 +34,34 @@ namespace FoodStreetWeb.Controllers
                 .ToListAsync();
 
             return View(myPois);
+        }
+
+        // =========================
+        // YÊU CẦU ĐÃ GỬI
+        // =========================
+        public async Task<IActionResult> Requests()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            var requests = await _context.PoiRequests
+                .Where(r => r.OwnerId == userId)
+                .ToListAsync();
+
+            return View(requests);
+        }
+
+        // =========================
+        // CHI TIẾT QUÁN
+        // =========================
+        public async Task<IActionResult> Details(int id)
+        {
+            var poi = await _context.Pois
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (poi == null)
+                return NotFound();
+
+            return View(poi);
         }
 
         // =========================
@@ -54,23 +80,23 @@ namespace FoodStreetWeb.Controllers
             {
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-                poi.OwnerId = userId;
-
-                // Admin thêm → duyệt luôn
-                if (User.IsInRole("Admin"))
+                var request = new PoiRequest
                 {
-                    poi.Status = PoiStatus.Approved;
-                }
-                else
-                {
-                    // Owner thêm → chờ duyệt quán mới
-                    poi.Status = PoiStatus.PendingCreate;
-                }
+                    RequestType = PoiRequestType.Create,
+                    OwnerId = userId,
+                    Name = poi.Name,
+                    Latitude = poi.Latitude,
+                    Longitude = poi.Longitude,
+                    Radius = poi.Radius,
+                    Description = poi.Description,
+                    ImageUrl = poi.ImageUrl,
+                    Status = PoiStatus.PendingCreate
+                };
 
-                _context.Add(poi);
+                _context.PoiRequests.Add(request);
                 await _context.SaveChangesAsync();
 
-                return RedirectToAction(nameof(Index));
+                return RedirectToAction(nameof(Requests));
             }
 
             return View(poi);
@@ -98,29 +124,26 @@ namespace FoodStreetWeb.Controllers
 
             if (ModelState.IsValid)
             {
-                var oldPoi = await _context.Pois.AsNoTracking()
-                    .FirstOrDefaultAsync(p => p.Id == id);
+                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-                if (oldPoi == null)
-                    return NotFound();
-
-                // Admin sửa → duyệt luôn
-                if (User.IsInRole("Admin"))
+                var request = new PoiRequest
                 {
-                    poi.Status = PoiStatus.Approved;
-                }
-                else
-                {
-                    // Owner sửa → chờ duyệt chỉnh sửa
-                    poi.Status = PoiStatus.PendingUpdate;
-                }
+                    PoiId = id,
+                    RequestType = PoiRequestType.Update,
+                    OwnerId = userId,
+                    Name = poi.Name,
+                    Latitude = poi.Latitude,
+                    Longitude = poi.Longitude,
+                    Radius = poi.Radius,
+                    Description = poi.Description,
+                    ImageUrl = poi.ImageUrl,
+                    Status = PoiStatus.PendingUpdate
+                };
 
-                poi.OwnerId = oldPoi.OwnerId;
-
-                _context.Update(poi);
+                _context.PoiRequests.Add(request);
                 await _context.SaveChangesAsync();
 
-                return RedirectToAction(nameof(Index));
+                return RedirectToAction(nameof(Requests));
             }
 
             return View(poi);
@@ -143,43 +166,93 @@ namespace FoodStreetWeb.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var poi = await _context.Pois.FindAsync(id);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            if (poi != null)
+            var request = new PoiRequest
             {
-                _context.Pois.Remove(poi);
-                await _context.SaveChangesAsync();
-            }
+                PoiId = id,
+                OwnerId = userId,
+                RequestType = PoiRequestType.Delete,
+                Status = PoiStatus.PendingUpdate
+            };
 
-            return RedirectToAction(nameof(Index));
+            _context.PoiRequests.Add(request);
+            await _context.SaveChangesAsync();
+
+            return RedirectToAction(nameof(Requests));
         }
 
         // =========================
-        // ADMIN DUYỆT
+        // ADMIN DUYỆT REQUEST
         // =========================
-
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Approve(int id)
         {
-            var poi = await _context.Pois.FindAsync(id);
+            var request = await _context.PoiRequests.FindAsync(id);
 
-            if (poi != null)
+            if (request == null)
+                return NotFound();
+
+            if (request.RequestType == PoiRequestType.Create)
             {
-                poi.Status = PoiStatus.Approved;
-                await _context.SaveChangesAsync();
+                var poi = new Poi
+                {
+                    OwnerId = request.OwnerId,
+                    Name = request.Name,
+                    Latitude = request.Latitude,
+                    Longitude = request.Longitude,
+                    Radius = request.Radius,
+                    Description = request.Description,
+                    ImageUrl = request.ImageUrl,
+                    Status = PoiStatus.Approved
+                };
+
+                _context.Pois.Add(poi);
             }
+
+            if (request.RequestType == PoiRequestType.Update)
+            {
+                var poi = await _context.Pois.FindAsync(request.PoiId);
+
+                if (poi != null)
+                {
+                    poi.Name = request.Name;
+                    poi.Latitude = request.Latitude;
+                    poi.Longitude = request.Longitude;
+                    poi.Radius = request.Radius;
+                    poi.Description = request.Description;
+                    poi.ImageUrl = request.ImageUrl;
+                }
+            }
+
+            if (request.RequestType == PoiRequestType.Delete)
+            {
+                var poi = await _context.Pois.FindAsync(request.PoiId);
+
+                if (poi != null)
+                {
+                    _context.Pois.Remove(poi);
+                }
+            }
+
+            request.Status = PoiStatus.Approved;
+
+            await _context.SaveChangesAsync();
 
             return RedirectToAction(nameof(Index));
         }
 
+        // =========================
+        // ADMIN TỪ CHỐI
+        // =========================
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Reject(int id)
         {
-            var poi = await _context.Pois.FindAsync(id);
+            var request = await _context.PoiRequests.FindAsync(id);
 
-            if (poi != null)
+            if (request != null)
             {
-                poi.Status = PoiStatus.Rejected;
+                request.Status = PoiStatus.Rejected;
                 await _context.SaveChangesAsync();
             }
 

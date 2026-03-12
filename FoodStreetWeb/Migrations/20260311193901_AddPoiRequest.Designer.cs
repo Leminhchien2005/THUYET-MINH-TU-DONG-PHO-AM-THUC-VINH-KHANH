@@ -4,6 +4,7 @@ using FoodStreetWeb.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FoodStreetWeb.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260311193901_AddPoiRequest")]
+    partial class AddPoiRequest
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -162,8 +165,8 @@ namespace FoodStreetWeb.Migrations
                     b.Property<int?>("PoiId")
                         .HasColumnType("int");
 
-                    b.Property<double>("Radius")
-                        .HasColumnType("double");
+                    b.Property<int>("Radius")
+                        .HasColumnType("int");
 
                     b.Property<int>("RequestType")
                         .HasColumnType("int");

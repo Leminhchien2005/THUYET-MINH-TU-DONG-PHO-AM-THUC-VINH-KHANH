@@ -22,17 +22,26 @@
         @foreach (var item in Model)
         {
             <tr>
-                <td>@item.Name</td>
+                <td>
+                    <a asp-controller="Pois"
+                           asp-action="Details"
+                           asp-route-id="@item.Id">
+                        @item.Name
+                    </a>
+                </td>
+
                 <td>@item.Latitude</td>
                 <td>@item.Longitude</td>
                 <td>@item.Radius</td>
                 <td>@item.Description</td>
+
                 <td>
                     @if (!string.IsNullOrEmpty(item.ImageUrl))
                     {
                         <img src="@item.ImageUrl" width="100" />
                     }
                 </td>
+
                 <td>
                     <a asp-action="Edit" asp-route-id="@item.Id">Sửa</a> |
                     <a asp-action="Delete" asp-route-id="@item.Id">Xóa</a>
