@@ -4,6 +4,7 @@ using FoodStreetWeb.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FoodStreetWeb.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260312080228_AddCreatedAtToPoiRequest")]
+    partial class AddCreatedAtToPoiRequest
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -168,9 +171,6 @@ namespace FoodStreetWeb.Migrations
                     b.Property<double>("Radius")
                         .HasColumnType("double");
 
-                    b.Property<string>("RejectReason")
-                        .HasColumnType("longtext");
-
                     b.Property<int>("RequestType")
                         .HasColumnType("int");
 
@@ -178,8 +178,6 @@ namespace FoodStreetWeb.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("PoiId");
 
                     b.ToTable("PoiRequests");
                 });
@@ -323,15 +321,6 @@ namespace FoodStreetWeb.Migrations
                         .HasForeignKey("OwnerId");
 
                     b.Navigation("Owner");
-                });
-
-            modelBuilder.Entity("FoodStreetWeb.Models.PoiRequest", b =>
-                {
-                    b.HasOne("FoodStreetWeb.Models.Poi", "Poi")
-                        .WithMany()
-                        .HasForeignKey("PoiId");
-
-                    b.Navigation("Poi");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

@@ -1,44 +1,77 @@
-﻿@model IEnumerable<FoodStreetWeb.Models.Poi>
+﻿@model IEnumerable<FoodStreetWeb.Models.PoiListViewModel>
 
 <h2>Danh sách quán ăn</h2>
 
-<p>
-    <a asp-action="Create">Thêm mới</a>
-</p>
+<form method="get" class="mb-3">
 
-<table border="1" cellpadding="10">
+    @if (User.IsInRole("Admin"))
+    {
+        <input type="text"
+               name="search"
+               placeholder="Tìm theo tên quán hoặc chủ nhà hàng"
+               value="@Context.Request.Query["search"]"
+               style="width:300px;padding:5px;" />
+    }
+    else
+    {
+        <input type="text"
+               name="search"
+               placeholder="Tìm theo tên quán"
+               value="@Context.Request.Query["search"]"
+               style="width:300px;padding:5px;" />
+    }
+
+    <button type="submit" class="btn btn-primary">
+        Tìm
+    </button>
+
+    <a asp-action="Index" class="btn btn-secondary">
+        Reset
+    </a>
+
+</form>
+
+<table class="table table-bordered">
+
     <thead>
         <tr>
-            <th>Tên</th>
+            <th>Tên quán</th>
+            <th>Chủ nhà hàng</th>
             <th>Vĩ độ</th>
             <th>Kinh độ</th>
-            <th>Bán kính (m)</th>
+            <th>Bán kính</th>
             <th>Mô tả</th>
             <th>Ảnh</th>
             <th>Hành động</th>
         </tr>
     </thead>
+
     <tbody>
+
         @foreach (var item in Model)
         {
             <tr>
+
                 <td>
-                    <a asp-controller="Pois"
-                           asp-action="Details"
-                           asp-route-id="@item.Id">
+                    <a asp-action="Details" asp-route-id="@item.Id">
                         @item.Name
                     </a>
                 </td>
 
+                <td>@item.OwnerName</td>
+
                 <td>@item.Latitude</td>
+
                 <td>@item.Longitude</td>
+
                 <td>@item.Radius</td>
+
                 <td>@item.Description</td>
 
                 <td>
                     @if (!string.IsNullOrEmpty(item.ImageUrl))
                     {
-                        <img src="@item.ImageUrl" width="100" />
+                        <img src="@item.ImageUrl" width="80" />
                     }
                 </td>
 
@@ -46,7 +79,9 @@
                     <a asp-action="Edit" asp-route-id="@item.Id">Sửa</a> |
                     <a asp-action="Delete" asp-route-id="@item.Id">Xóa</a>
                 </td>
+
             </tr>
         }
+
     </tbody>
 </table>

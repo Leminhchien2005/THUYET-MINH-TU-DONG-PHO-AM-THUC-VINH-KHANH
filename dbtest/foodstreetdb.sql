@@ -23,7 +23,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup 
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'a2da3451-14e2-11f1-9029-f8cf525edba1:1-151';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'a2da3451-14e2-11f1-9029-f8cf525edba1:1-219';
 
 --
 -- Table structure for table `__efmigrationshistory`
@@ -45,7 +45,7 @@ CREATE TABLE `__efmigrationshistory` (
 
 LOCK TABLES `__efmigrationshistory` WRITE;
 /*!40000 ALTER TABLE `__efmigrationshistory` DISABLE KEYS */;
-INSERT INTO `__efmigrationshistory` VALUES ('20260228204202_Init','9.0.0'),('20260302002619_Init','9.0.0'),('20260308094940_IdentityInit','9.0.0'),('20260310000503_AddFullName','9.0.0'),('20260310001913_AddOwnerToPoi','9.0.0'),('20260310005900_InitIdentity','9.0.0'),('20260310030328_AddPoiStatus','9.0.0'),('20260311193901_AddPoiRequest','9.0.0'),('20260311195507_FixRadiusType','9.0.0');
+INSERT INTO `__efmigrationshistory` VALUES ('20260228204202_Init','9.0.0'),('20260302002619_Init','9.0.0'),('20260308094940_IdentityInit','9.0.0'),('20260310000503_AddFullName','9.0.0'),('20260310001913_AddOwnerToPoi','9.0.0'),('20260310005900_InitIdentity','9.0.0'),('20260310030328_AddPoiStatus','9.0.0'),('20260311193901_AddPoiRequest','9.0.0'),('20260311195507_FixRadiusType','9.0.0'),('20260312080228_AddCreatedAtToPoiRequest','9.0.0');
 /*!40000 ALTER TABLE `__efmigrationshistory` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -180,7 +180,7 @@ CREATE TABLE `aspnetuserroles` (
 
 LOCK TABLES `aspnetuserroles` WRITE;
 /*!40000 ALTER TABLE `aspnetuserroles` DISABLE KEYS */;
-INSERT INTO `aspnetuserroles` VALUES ('7d1aa912-1631-40e8-b019-85d5c713f9ff','894739cb-0cf1-4526-81c7-9b08b33c6bc8'),('7fdce239-87f9-4796-8cf9-7f3875a5aeb9','894739cb-0cf1-4526-81c7-9b08b33c6bc8'),('d9797e2a-58d1-4f17-b07f-0703dc3872a1','894739cb-0cf1-4526-81c7-9b08b33c6bc8'),('edafc448-c911-4351-be56-2f9aed23c168','894739cb-0cf1-4526-81c7-9b08b33c6bc8'),('35b899e4-52fa-43ae-b42a-574e328479c8','d1cd57c4-cc6a-4db5-98ee-4f7eebb37efb'),('b5d0ef47-e043-4142-a7cd-03c70ac021a7','d1cd57c4-cc6a-4db5-98ee-4f7eebb37efb');
+INSERT INTO `aspnetuserroles` VALUES ('7d1aa912-1631-40e8-b019-85d5c713f9ff','894739cb-0cf1-4526-81c7-9b08b33c6bc8'),('7fdce239-87f9-4796-8cf9-7f3875a5aeb9','894739cb-0cf1-4526-81c7-9b08b33c6bc8'),('d9797e2a-58d1-4f17-b07f-0703dc3872a1','894739cb-0cf1-4526-81c7-9b08b33c6bc8'),('edafc448-c911-4351-be56-2f9aed23c168','894739cb-0cf1-4526-81c7-9b08b33c6bc8'),('34d10e4d-0d96-4897-9d73-df7848d892cd','d1cd57c4-cc6a-4db5-98ee-4f7eebb37efb'),('35b899e4-52fa-43ae-b42a-574e328479c8','d1cd57c4-cc6a-4db5-98ee-4f7eebb37efb'),('b5d0ef47-e043-4142-a7cd-03c70ac021a7','d1cd57c4-cc6a-4db5-98ee-4f7eebb37efb');
 /*!40000 ALTER TABLE `aspnetuserroles` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -220,7 +220,7 @@ CREATE TABLE `aspnetusers` (
 
 LOCK TABLES `aspnetusers` WRITE;
 /*!40000 ALTER TABLE `aspnetusers` DISABLE KEYS */;
-INSERT INTO `aspnetusers` VALUES ('35b899e4-52fa-43ae-b42a-574e328479c8','admin@gmail.com','ADMIN@GMAIL.COM','admin@gmail.com','ADMIN@GMAIL.COM',0,'AQAAAAIAAYagAAAAEDYi3TOcvcpjXx4DROq2oLarl9Epo+FWdYObAE4Jr7xjbPdlF2HBI/lcEeTUZ+JL9Q==','YMGQNTVUGD3LKMOSA57CW7FJ6FA5DBRB','991bdf6d-0e39-42a1-b56c-f5730ecb0e49',NULL,0,0,NULL,1,0,''),('7d1aa912-1631-40e8-b019-85d5c713f9ff','Chien4@gmail.com','CHIEN4@GMAIL.COM','Chien4@gmail.com','CHIEN4@GMAIL.COM',0,'AQAAAAIAAYagAAAAENifKiYKVgnpOXt9c5gpxqRi971A0Dna2oe7DVBcsErMDQKT/Sw8JIvqjhkVm8pyxA==','PCDCQAZZUAZWNVUM54MQHBTXQNHK3RDO','94bb6d8e-ef32-4757-8ffc-c8236d3df34d','0123456789',0,0,NULL,1,0,'le minh chien2'),('7fdce239-87f9-4796-8cf9-7f3875a5aeb9','chien@gmail.com','CHIEN@GMAIL.COM','chien@gmail.com','CHIEN@GMAIL.COM',0,'AQAAAAIAAYagAAAAEI4RhqYPlb+PG+8YH7EcEHt/59kNqXFHsb+G6e/UYWKnN28u71MFKMY5OQ2iKcASdg==','UVQCP5LWDHGK3K2TAHXLD6HWVKWJEI72','367b0345-6fd2-43bf-93f5-6fa7e3cbbf60',NULL,0,0,NULL,1,0,''),('b5d0ef47-e043-4142-a7cd-03c70ac021a7','admin1@gmail.com','ADMIN1@GMAIL.COM','admin1@gmail.com','ADMIN1@GMAIL.COM',0,'AQAAAAIAAYagAAAAEADnTn8At7VSB5S6RVWo+uSHKuioSFZFlgOt0hgvZVYz+rtUvKO9Afx6sGNw7WA2iA==','P2LHPJD75VZ462EMSWHFZ3NP4HHMUBL5','44595668-6e35-4bdc-a2fb-d4382d67f89c',NULL,0,0,NULL,1,0,''),('d9797e2a-58d1-4f17-b07f-0703dc3872a1','Chien1@gmail.com','CHIEN1@GMAIL.COM','Chien1@gmail.com','CHIEN1@GMAIL.COM',0,'AQAAAAIAAYagAAAAENafPUt2bJ9QAxgJsCOiXNtNSamdHJ+/gLozl6LmGPLEN7sNxhJI/Hr0XVfq9a1Rpw==','TOO2SRVXVDYQPLIGXZFKJNE2GTEPA5MX','75a3a98b-a4a1-4be5-87c9-4afb711b73b9',NULL,0,0,NULL,1,0,'le minh chien'),('edafc448-c911-4351-be56-2f9aed23c168','Chien3@gmail.com','CHIEN3@GMAIL.COM','Chien3@gmail.com','CHIEN3@GMAIL.COM',0,'AQAAAAIAAYagAAAAEBsV8j+VviYRauBtL/cTJ6mlrF3V5YdDpfycQnAWyCsJ2suiVw4b8fAgiRcjBHBhqg==','PGU4ZJOORC77WATNUWNMKKVAT7MTQJEO','fe84a0fa-e12c-47a4-b77e-74607cec22bd',NULL,0,0,NULL,1,0,'le minh chien1');
+INSERT INTO `aspnetusers` VALUES ('34d10e4d-0d96-4897-9d73-df7848d892cd','admin2@123','ADMIN2@123','admin2@123','ADMIN2@123',0,'AQAAAAIAAYagAAAAEPSNgk0Qa/l7bOdM9QSBGwssGzdFXO8jNgmkzGKPZemSmwCWfhV+q4JhrxIzntOokg==','MZJFZ2JOZOY73DCTYMVOC5K4NRNERK7G','3947b13c-a35d-4d95-a854-67de2233478b','0123456789',0,0,NULL,1,0,'le minh chien'),('35b899e4-52fa-43ae-b42a-574e328479c8','admin@gmail.com','ADMIN@GMAIL.COM','admin@gmail.com','ADMIN@GMAIL.COM',0,'AQAAAAIAAYagAAAAEDYi3TOcvcpjXx4DROq2oLarl9Epo+FWdYObAE4Jr7xjbPdlF2HBI/lcEeTUZ+JL9Q==','YMGQNTVUGD3LKMOSA57CW7FJ6FA5DBRB','991bdf6d-0e39-42a1-b56c-f5730ecb0e49',NULL,0,0,NULL,1,0,''),('7d1aa912-1631-40e8-b019-85d5c713f9ff','Chien4@gmail.com','CHIEN4@GMAIL.COM','Chien4@gmail.com','CHIEN4@GMAIL.COM',0,'AQAAAAIAAYagAAAAENifKiYKVgnpOXt9c5gpxqRi971A0Dna2oe7DVBcsErMDQKT/Sw8JIvqjhkVm8pyxA==','PCDCQAZZUAZWNVUM54MQHBTXQNHK3RDO','94bb6d8e-ef32-4757-8ffc-c8236d3df34d','0123456789',0,0,NULL,1,0,'le minh chien2'),('7fdce239-87f9-4796-8cf9-7f3875a5aeb9','chien@gmail.com','CHIEN@GMAIL.COM','chien@gmail.com','CHIEN@GMAIL.COM',0,'AQAAAAIAAYagAAAAEI4RhqYPlb+PG+8YH7EcEHt/59kNqXFHsb+G6e/UYWKnN28u71MFKMY5OQ2iKcASdg==','UVQCP5LWDHGK3K2TAHXLD6HWVKWJEI72','6dfd8efa-72f8-46e9-aed3-addd902265c1',NULL,0,0,NULL,1,0,''),('b5d0ef47-e043-4142-a7cd-03c70ac021a7','admin1@gmail.com','ADMIN1@GMAIL.COM','admin1@gmail.com','ADMIN1@GMAIL.COM',0,'AQAAAAIAAYagAAAAEADnTn8At7VSB5S6RVWo+uSHKuioSFZFlgOt0hgvZVYz+rtUvKO9Afx6sGNw7WA2iA==','P2LHPJD75VZ462EMSWHFZ3NP4HHMUBL5','44595668-6e35-4bdc-a2fb-d4382d67f89c',NULL,0,0,NULL,1,0,''),('d9797e2a-58d1-4f17-b07f-0703dc3872a1','Chien1@gmail.com','CHIEN1@GMAIL.COM','Chien1@gmail.com','CHIEN1@GMAIL.COM',0,'AQAAAAIAAYagAAAAENafPUt2bJ9QAxgJsCOiXNtNSamdHJ+/gLozl6LmGPLEN7sNxhJI/Hr0XVfq9a1Rpw==','TOO2SRVXVDYQPLIGXZFKJNE2GTEPA5MX','75a3a98b-a4a1-4be5-87c9-4afb711b73b9',NULL,0,0,NULL,1,0,'le minh chien'),('edafc448-c911-4351-be56-2f9aed23c168','Chien3@gmail.com','CHIEN3@GMAIL.COM','Chien3@gmail.com','CHIEN3@GMAIL.COM',0,'AQAAAAIAAYagAAAAEBsV8j+VviYRauBtL/cTJ6mlrF3V5YdDpfycQnAWyCsJ2suiVw4b8fAgiRcjBHBhqg==','PGU4ZJOORC77WATNUWNMKKVAT7MTQJEO','fe84a0fa-e12c-47a4-b77e-74607cec22bd',NULL,0,0,NULL,1,0,'le minh chien1');
 /*!40000 ALTER TABLE `aspnetusers` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -269,8 +269,11 @@ CREATE TABLE `poirequests` (
   `Description` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
   `ImageUrl` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
   `Status` int NOT NULL,
-  PRIMARY KEY (`Id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+  `CreatedAt` datetime(6) NOT NULL DEFAULT '0001-01-01 00:00:00.000000',
+  `RejectReason` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  PRIMARY KEY (`Id`),
+  KEY `IX_PoiRequests_PoiId` (`PoiId`)
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -279,7 +282,7 @@ CREATE TABLE `poirequests` (
 
 LOCK TABLES `poirequests` WRITE;
 /*!40000 ALTER TABLE `poirequests` DISABLE KEYS */;
-INSERT INTO `poirequests` VALUES (1,NULL,0,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','Pizza ABC',10.123,106.456,500,'6767','6',2);
+INSERT INTO `poirequests` VALUES (1,NULL,0,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','Pizza ABC',10.123,106.456,500,'Quán pizza ngon','6',3,'2026-03-14 14:43:03.874765','Không hợp lệ'),(2,NULL,0,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','Pizza ABC',10.123,106.456,500,'Quán pizza ngon','6',2,'2026-03-14 14:44:16.269404',NULL),(3,17,1,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','Pizza ABC',10.123,106.456,500,'Quán pizza ngon','6',3,'2026-03-14 14:46:22.132201',NULL),(4,17,2,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','Pizza ABC',10.123,106.456,500,'Quán pizza ngon','6',3,'2026-03-14 14:47:40.515742','nhuw cuc'),(5,NULL,0,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','Pizza ABCa',10.123,106.456,500,'Quán pizza ngon','6',3,'2026-03-14 14:47:55.852688',NULL),(6,NULL,0,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','leuleu',10.757121906630033,106.63444662093299,500,'Quán pizza ngon','6',2,'2026-03-15 18:33:08.870542',NULL),(7,NULL,0,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','mkx',10.760716127654106,106.63600766657966,500,'Quán pizza ngon','6',2,'2026-03-16 01:17:29.448252',NULL),(8,18,1,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','mkx',10.75804945180171,106.63615894311081,500,'Quán pizza ngon','6',2,'2026-03-16 01:25:27.645180',NULL);
 /*!40000 ALTER TABLE `poirequests` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -303,7 +306,7 @@ CREATE TABLE `pois` (
   PRIMARY KEY (`Id`),
   KEY `IX_Pois_OwnerId` (`OwnerId`),
   CONSTRAINT `FK_Pois_AspNetUsers_OwnerId` FOREIGN KEY (`OwnerId`) REFERENCES `aspnetusers` (`Id`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -312,7 +315,7 @@ CREATE TABLE `pois` (
 
 LOCK TABLES `pois` WRITE;
 /*!40000 ALTER TABLE `pois` DISABLE KEYS */;
-INSERT INTO `pois` VALUES (1,'Ốc Oanh',10.760972,106.704676,120,'Quán ốc nổi tiếng ở Vĩnh Khánh','https://example.com/oc-oanh.jpg',NULL,0),(2,'Phá Lấu Cô Thảo',10.756616,106.7073,100,'Quán phá lấu đậm vị miền Nam','https://example.com/pha-lau.jpg',NULL,0),(3,'Cháo Ếch Singapore',10.761125,106.705831,110,'Cháo ếch nấu trong nồi đất','https://example.com/chao-ech.jpg',NULL,0),(4,'Bánh Flan Ngọc Nga',10.762312,106.703169,100,'Flan caramel nổi tiếng','https://example.com/flan.jpg',NULL,0),(5,'Lẩu Gà Lá É',10.760846,106.706715,150,'Lẩu gà lá é đặc trưng','https://example.com/lau-ga.jpg',NULL,0),(6,'Cơm Cháy Kho Quẹt',10.760463,106.703812,120,'Món ăn dân dã miền Nam','https://example.com/com-chay.jpg',NULL,0),(7,'Bánh Tráng Nướng Cô Phượng',10.761449,106.702045,100,'Bánh tráng nướng giòn','https://example.com/banh-trang.jpg',NULL,0),(8,'Bobapop Vĩnh Khánh',10.76021,106.70548,100,'Trà sữa nổi tiếng','https://example.com/bobapop.jpg',NULL,0);
+INSERT INTO `pois` VALUES (1,'Ốc Oanh',10.760972,106.704676,120,'Quán ốc nổi tiếng ở Vĩnh Khánh','https://example.com/oc-oanh.jpg','7d1aa912-1631-40e8-b019-85d5c713f9ff',2),(2,'Phá Lấu Cô Thảo',10.756616,106.7073,100,'Quán phá lấu đậm vị miền Nam','https://example.com/pha-lau.jpg','7fdce239-87f9-4796-8cf9-7f3875a5aeb9',2),(3,'Cháo Ếch Singapore',10.761125,106.705831,110,'Cháo ếch nấu trong nồi đất','https://example.com/chao-ech.jpg','7fdce239-87f9-4796-8cf9-7f3875a5aeb9',2),(4,'Bánh Flan Ngọc Nga',10.762312,106.703169,100,'Flan caramel nổi tiếng','https://example.com/flan.jpg','7fdce239-87f9-4796-8cf9-7f3875a5aeb9',2),(5,'Lẩu Gà Lá É',10.760846,106.706715,150,'Lẩu gà lá é đặc trưng','https://example.com/lau-ga.jpg','7fdce239-87f9-4796-8cf9-7f3875a5aeb9',2),(6,'Cơm Cháy Kho Quẹt',10.760463,106.703812,120,'Món ăn dân dã miền Nam','https://example.com/com-chay.jpg','7fdce239-87f9-4796-8cf9-7f3875a5aeb9',2),(7,'Bánh Tráng Nướng Cô Phượng',10.761449,106.702045,100,'Bánh tráng nướng giòn','https://example.com/banh-trang.jpg','7fdce239-87f9-4796-8cf9-7f3875a5aeb9',2),(8,'Bobapop Vĩnh Khánh',10.76021,106.70548,100,'Trà sữa nổi tiếng','https://example.com/bobapop.jpg','7fdce239-87f9-4796-8cf9-7f3875a5aeb9',2),(17,'Pizza ABC',10.123,106.456,500,'Quán pizza ngon','6','7fdce239-87f9-4796-8cf9-7f3875a5aeb9',2),(18,'mkx',10.75804945180171,106.63615894311081,500,'Quán pizza ngon','6','7fdce239-87f9-4796-8cf9-7f3875a5aeb9',2);
 /*!40000 ALTER TABLE `pois` ENABLE KEYS */;
 UNLOCK TABLES;
 SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;
@@ -326,4 +329,4 @@ SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-03-12  7:22:12
+-- Dump completed on 2026-03-16  4:59:03

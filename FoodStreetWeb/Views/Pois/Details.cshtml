@@ -1,19 +1,78 @@
 ﻿@model FoodStreetWeb.Models.Poi
 
+@{
+    ViewData["Title"] = "Chi tiết quán";
+}
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
 <h2>Chi tiết quán</h2>
 
+<hr />
+
 <p><b>Tên quán:</b> @Model.Name</p>
+
 <p><b>Mô tả:</b> @Model.Description</p>
+
 <p><b>Latitude:</b> @Model.Latitude</p>
+
 <p><b>Longitude:</b> @Model.Longitude</p>
-<p><b>Bán kính:</b> @Model.Radius</p>
+
+<p><b>Bán kính:</b> @Model.Radius m</p>
+
+<br />
+
+<h4>Bản đồ</h4>
+
+<div id="map" style="height:400px;border:1px solid #ccc"></div>
+
+<br />
+
+<h4>Thông tin chủ nhà hàng</h4>
+
+<p><b>Họ tên:</b> @ViewBag.OwnerName</p>
+<p><b>Email:</b> @ViewBag.OwnerEmail</p>
+<p><b>Số điện thoại:</b> @ViewBag.OwnerPhone</p>
+
+<br />
 
 @if (!string.IsNullOrEmpty(Model.ImageUrl))
 {
-    <img src="@Model.ImageUrl" width="300" />
+    <img src="@Model.ImageUrl" style="width:300px" />
 }
 
 <br />
 <br />
 
-<a asp-action="Requests">Quay lại</a>
+<a asp-action="Index">Quay lại</a>
+
+@section Scripts {
+
+    <script>
+
+        var lat = @Model.Latitude;
+        var lng = @Model.Longitude;
+        var radius = @Model.Radius;
+
+        var map = L.map('map').setView([lat,lng],16);
+
+        L.tileLayer(
+        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {
+        attribution:'Map data'
+        }).addTo(map);
+
+        var marker = L.marker([lat,lng]).addTo(map)
+        .bindPopup("@Model.Name")
+        .openPopup();
+
+        var circle = L.circle([lat,lng],{
+        radius:radius,
+        color:'blue',
+        fillOpacity:0.2
+        }).addTo(map);
+
+    </script>
+
+}

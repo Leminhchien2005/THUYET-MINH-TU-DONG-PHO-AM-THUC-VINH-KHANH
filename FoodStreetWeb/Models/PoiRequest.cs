@@ -32,5 +32,11 @@ namespace FoodStreetWeb.Models
         public string ImageUrl { get; set; }
 
         public PoiStatus Status { get; set; }
+
+        public DateTime CreatedAt { get; set; }
+
+        public Poi? Poi { get; set; }
+
+        public string? RejectReason { get; set; }
     }
 }

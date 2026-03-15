@@ -46,5 +46,6 @@ namespace FoodStreetWeb.Models
         // không lưu DB
         [NotMapped]
         public double DistanceKm { get; set; }
+
     }
 }

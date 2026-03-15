@@ -1,4 +1,17 @@
-﻿<!DOCTYPE html>
+﻿@using Microsoft.AspNetCore.Identity
+@using FoodStreetWeb.Models
+@inject UserManager<ApplicationUser> UserManager
+
+@{
+    ApplicationUser currentUser = null;
+
+    if (User.Identity.IsAuthenticated)
+    {
+        currentUser = await UserManager.GetUserAsync(User);
+    }
+}
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -26,12 +39,12 @@
 
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
 
-                    <!-- MENU LEFT -->
+                    <!-- LEFT MENU -->
                     <ul class="navbar-nav flex-grow-1">
 
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-controller="Home" asp-action="Index">
-                                Home
+                                Trang chủ
                             </a>
                         </li>
 
@@ -41,40 +54,46 @@
                             </a>
                         </li>
 
-                        @* ADMIN MENU *@
+
                         @if (User.Identity.IsAuthenticated && User.IsInRole("Admin"))
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Admin" asp-action="AdminDashboard">
-                                    Quản lý yêu cầu
+                                <a class="nav-link text-dark" asp-controller="Pois" asp-action="AdminRequests">
+                                    Duyệt yêu cầu quán
                                 </a>
                             </li>
 
                             <li class="nav-item">
                                 <a class="nav-link text-dark" asp-controller="Pois" asp-action="Index">
-                                    Quản lý nhà hàng
+                                    Quản lý quán
                                 </a>
                             </li>
 
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Admin" asp-action="Users">
+                                <a class="nav-link text-dark" asp-controller="Admin" asp-action="ManageUsers">
                                     Quản lý tài khoản
                                 </a>
                             </li>
                         }
 
-                        @* RESTAURANT OWNER MENU *@
+
                         @if (User.Identity.IsAuthenticated && User.IsInRole("RestaurantOwner"))
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Owner" asp-action="OwnerDashboard">
+                                <a class="nav-link text-dark" asp-controller="Pois" asp-action="Index">
                                     Quán của tôi
                                 </a>
                             </li>
 
                             <li class="nav-item">
-                                <a class="nav-link text-dark" asp-controller="Owner" asp-action="CreateRestaurant">
+                                <a class="nav-link text-dark" asp-controller="Pois" asp-action="Create">
                                     Thêm quán
+                                </a>
+                            </li>
+
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Pois" asp-action="Requests">
+                                    Yêu cầu đã gửi
                                 </a>
                             </li>
                         }
@@ -82,19 +101,19 @@
                     </ul>
 
 
-                    <!-- MENU RIGHT -->
+                    <!-- RIGHT MENU -->
                     <ul class="navbar-nav">
 
                         @if (User.Identity.IsAuthenticated)
                         {
                             <li class="nav-item">
                                 <span class="nav-link">
-                                    Xin chào @User.Identity.Name
+                                    Xin chào @currentUser?.FullName
                                 </span>
                             </li>
 
                             <li class="nav-item">
-                                <a class="nav-link text-danger" href="/Account/Logout">
+                                <a class="nav-link text-danger" asp-controller="Account" asp-action="Logout">
                                     Đăng xuất
                                 </a>
                             </li>
@@ -102,13 +121,13 @@
                         else
                         {
                             <li class="nav-item">
-                                <a class="nav-link text-dark" href="/Account/Login">
+                                <a class="nav-link text-dark" asp-controller="Account" asp-action="Login">
                                     Đăng nhập
                                 </a>
                             </li>
 
                             <li class="nav-item">
-                                <a class="nav-link text-dark" href="/Account/Register">
+                                <a class="nav-link text-dark" asp-controller="Account" asp-action="Register">
                                     Đăng ký
                                 </a>
                             </li>
@@ -117,7 +136,6 @@
                     </ul>
 
                 </div>
-
             </div>
 
         </nav>
@@ -134,11 +152,9 @@
 
 
     <footer class="border-top footer text-muted">
-
         <div class="container">
             © 2026 - FoodStreetWeb
         </div>
-
     </footer>
 
 
@@ -149,4 +165,3 @@
 
 </body>
 </html>
-```
