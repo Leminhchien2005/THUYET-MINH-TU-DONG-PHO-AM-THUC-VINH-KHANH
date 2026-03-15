@@ -4,6 +4,7 @@ using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Maps;
 using Microsoft.Maui.Networking;
 using System.Diagnostics;
+using System.Xml;
 
 namespace FoodStreetGuide;
 
@@ -17,6 +18,8 @@ public partial class MainPage : ContentPage
     private Location? _lastLocation;
 
     double panelStart;
+
+    Poi? _selectedPoi;
 
     public MainPage()
     {
@@ -34,7 +37,10 @@ public partial class MainPage : ContentPage
         // Nếu có internet → cập nhật dữ liệu từ API
         if (Connectivity.Current.NetworkAccess == NetworkAccess.Internet)
         {
-            await AutoUpdateAsync();
+            _ = Task.Run(async () =>
+            {
+                await AutoUpdateAsync();
+            });
         }
 
         // Sau đó load dữ liệu từ SQLite
@@ -66,7 +72,7 @@ public partial class MainPage : ContentPage
             );
         }
 
-        Dispatcher.StartTimer(TimeSpan.FromSeconds(3), () =>
+        Dispatcher.StartTimer(TimeSpan.FromSeconds(1), () =>
         {
             _ = CheckLocationAsync();
             return true;
@@ -82,53 +88,37 @@ public partial class MainPage : ContentPage
 
             var pois = await apiService.GetPoisAsync();
 
-            Debug.WriteLine("========== API TEST ==========");
-
-            if (pois == null)
+            if (pois == null || pois.Count == 0)
             {
-                Debug.WriteLine("API RETURN NULL");
-                await DisplayAlert("API TEST", "API NULL", "OK");
+                Debug.WriteLine("API EMPTY");
                 return;
             }
 
             Debug.WriteLine("API COUNT: " + pois.Count);
 
-            await DisplayAlertAsync("API TEST", "API Count: " + pois.Count, "OK");
-
-            foreach (var p in pois)
-            {
-                Debug.WriteLine("API POI: " + p.Name);
-            }
-
             await _database.ReplaceAllDataAsync(pois);
-
-            Debug.WriteLine("========== SQLITE TEST ==========");
 
             var sqliteList = await _database.GetAllPoiAsync();
 
             Debug.WriteLine("SQLITE COUNT: " + sqliteList.Count);
 
-            foreach (var p in sqliteList)
-            {
-                Debug.WriteLine("SQLITE POI: " + p.Name);
-            }
-
-            await DisplayAlertAsync("SQLITE TEST", "SQLite Count: " + sqliteList.Count, "OK");
-
-
             _poiList = sqliteList;
 
             PoiList.ItemsSource = _poiList;
 
-            Debug.WriteLine("========== UI TEST ==========");
-            Debug.WriteLine("UI COUNT: " + _poiList.Count);
-
             LoadMapPins();
+        }
+        catch (HttpRequestException)
+        {
+            Debug.WriteLine("API SERVER KHÔNG CHẠY");
+        }
+        catch (TaskCanceledException)
+        {
+            Debug.WriteLine("API TIMEOUT");
         }
         catch (Exception ex)
         {
             Debug.WriteLine("ERROR: " + ex.Message);
-            await DisplayAlert("ERROR", ex.Message, "OK");
         }
     }
 
@@ -140,22 +130,6 @@ public partial class MainPage : ContentPage
         if (_poiList == null)
             _poiList = new List<Poi>();
 
-        if (_poiList.Count == 0)
-        {
-            var poi = new Poi
-            {
-                Name = "Bún bò Huế",
-                Description = "Quán nổi tiếng",
-                Latitude = 10.762622,
-                Longitude = 106.660172
-            };
-
-            await _database.AddPoiAsync(poi);
-
-            _poiList = await _database.GetAllPoiAsync();
-        }
-
-        PoiList.ItemsSource = null;
         PoiList.ItemsSource = _poiList;
 
         Debug.WriteLine("POI COUNT: " + _poiList.Count);
@@ -189,13 +163,14 @@ public partial class MainPage : ContentPage
 
         if (_lastLocation != null)
         {
-            var distance = Location.CalculateDistance(
+            var moveDistance = Location.CalculateDistance(
                 _lastLocation,
                 location,
                 DistanceUnits.Kilometers
             ) * 1000;
 
-            if (distance < 10)
+            // chỉ cập nhật khi di chuyển > 2m
+            if (moveDistance < 2)
                 return;
         }
 
@@ -216,10 +191,7 @@ public partial class MainPage : ContentPage
             .OrderBy(p => p.DistanceKm)
             .ToList();
 
-        PoiList.ItemsSource = null;
         PoiList.ItemsSource = _poiList;
-
-        LoadMapPins();
     }
 
     // CLICK QUÁN → ZOOM MAP
@@ -230,12 +202,65 @@ public partial class MainPage : ContentPage
         if (poi == null)
             return;
 
+        _selectedPoi = poi;
+
+        var location = new Location(poi.Latitude, poi.Longitude);
+
+        // zoom tới quán
         MyMap.MoveToRegion(
             MapSpan.FromCenterAndRadius(
-                new Location(poi.Latitude, poi.Longitude),
-                Distance.FromKilometers(0.5)
+                location,
+                Distance.FromKilometers(0.3)
             )
         );
+
+        // hiện detail
+        DetailPanel.IsVisible = true;
+
+        DetailName.Text = poi.Name;
+        DetailDescription.Text = poi.Description;
+        DetailDistance.Text = $"Khoảng cách {poi.DistanceKm:0.00} km";
+
+        if (!string.IsNullOrEmpty(poi.ImageUrl))
+            DetailImage.Source = poi.ImageUrl;
+
+        // mở panel
+        BottomPanel.TranslateTo(0, 0, 200);
+    }
+
+    async void RouteButton_Click(object sender, EventArgs e)
+    {
+        if (_selectedPoi == null)
+            return;
+
+        var url =
+            $"https://www.google.com/maps/dir/?api=1&destination={_selectedPoi.Latitude},{_selectedPoi.Longitude}";
+
+        await Launcher.Default.OpenAsync(url);
+    }
+
+    void DetailButton_Click(object sender, EventArgs e)
+    {
+        if (_selectedPoi == null)
+            return;
+
+        var poi = _selectedPoi;
+
+        FullName.Text = poi.Name;
+        FullDescription.Text = poi.Description;
+        FullDistance.Text = $"Khoảng cách {poi.DistanceKm:0.00} km";
+
+        if (!string.IsNullOrEmpty(poi.ImageUrl))
+            FullImage.Source = poi.ImageUrl;
+
+        DetailFullPanel.IsVisible = true;
+    }
+
+    async void CloseDetail_Click(object sender, EventArgs e)
+    {
+        DetailFullPanel.IsVisible = false;
+
+        await BottomPanel.TranslateTo(0, 280, 200);
     }
 
     // SEARCH
