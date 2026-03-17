@@ -5,7 +5,6 @@ using Microsoft.Maui.Maps;
 using Microsoft.Maui.Networking;
 using System.Diagnostics;
 using System.Text.Json;
-using System.Xml;
 using System.Net.Http;
 
 namespace FoodStreetGuide;
@@ -248,7 +247,8 @@ public partial class MainPage : ContentPage
         PoiList.IsVisible = false;
         DetailPanel.IsVisible = true;
 
-        DetailName.Text = poi.Name;
+        TitleLabel.Text = poi.Name ?? "Quán gần bạn";
+
         DetailDescription.Text = poi.Description;
         DetailDistance.Text = $"Khoảng cách {poi.DistanceKm:0.00} km";
 
@@ -265,6 +265,7 @@ public partial class MainPage : ContentPage
         PoiList.SelectedItem = null;
         DetailPanel.IsVisible = false;
         PoiList.IsVisible = true;
+        TitleLabel.Text = "Quán gần bạn";
         MyMap.MapElements.Clear();
     }
 
@@ -305,6 +306,36 @@ public partial class MainPage : ContentPage
             return new List<Location>();
         }
     }
+
+    async Task SaveRouteAsync(Location start, Location end, List<Location> points)
+    {
+        var route = new RouteCache
+        {
+            StartLat = start.Latitude,
+            StartLon = start.Longitude,
+            EndLat = end.Latitude,
+            EndLon = end.Longitude,
+            PointsJson = JsonSerializer.Serialize(points)
+        };
+
+        await _database.SaveRouteAsync(route);
+    }
+
+    async Task<List<Location>> LoadRouteAsync(Location start, Location end)
+    {
+        var route = await _database.GetRouteAsync(
+            start.Latitude,
+            start.Longitude,
+            end.Latitude,
+            end.Longitude);
+
+        if (route == null)
+            return new List<Location>();
+
+        return JsonSerializer.Deserialize<List<Location>>(route.PointsJson);
+    }
+
+
     async void RouteButton_Click(object sender, EventArgs e)
     {
         if (_selectedPoi == null || _lastLocation == null)
@@ -317,14 +348,36 @@ public partial class MainPage : ContentPage
             var start = _lastLocation;
             var end = new Location(_selectedPoi.Latitude, _selectedPoi.Longitude);
 
-            var points = await GetRouteAsync(start, end);
+            List<Location> points;
+
+            if (Connectivity.Current.NetworkAccess == NetworkAccess.Internet)
+            {
+                // ONLINE
+                points = await GetRouteAsync(start, end);
+
+                if (points != null && points.Count > 0)
+                {
+                    await SaveRouteAsync(start, end, points);
+                }
+            }
+            else
+            {
+                // OFFLINE
+                points = await LoadRouteAsync(start, end);
+
+                if (points == null || points.Count == 0)
+                {
+                    await DisplayAlert("Offline", "Chưa có route lưu trước đó", "OK");
+                    return;
+                }
+            }
+
 
             if (points == null || points.Count == 0)
             {
                 await DisplayAlert("Lỗi", "Không lấy được đường đi", "OK");
                 return;
             }
-
             var polyline = new Polyline
             {
                 StrokeColor = Colors.Blue,
@@ -372,13 +425,6 @@ public partial class MainPage : ContentPage
         // Xử lý lưu yêu thích ở đây
         DisplayAlert("Thông báo", $"Đã lưu '{_selectedPoi.Name}' vào danh sách yêu thích.", "OK");
     }
-
-    void CloseDetail_Click(object sender, EventArgs e)
-    {
-        DetailFullPanel.IsVisible = false;
-        TitleLabel.IsVisible = true;
-    }
-
 
     // SEARCH
     void SearchBar_TextChanged(object sender, TextChangedEventArgs e)

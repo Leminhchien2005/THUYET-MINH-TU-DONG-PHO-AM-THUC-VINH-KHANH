@@ -118,9 +118,11 @@
 
                 <!-- DETAIL MINI -->
                 <Grid Grid.Row="2"
+                      Grid.RowSpan="2"
                       x:Name="DetailPanel"
                       IsVisible="False"
-                      Margin="0,10">
+                      Margin="0,10"
+                      VerticalOptions="Fill">
 
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="100"/>
@@ -135,11 +137,6 @@
                         Aspect="AspectFill"/>
 
                     <VerticalStackLayout Grid.Column="1" Margin="10,0">
-
-                        <Label
-                            x:Name="DetailName"
-                            FontSize="16"
-                            FontAttributes="Bold"/>
 
                         <Label
                             x:Name="DetailDescription"
@@ -240,64 +237,6 @@
                     </CollectionView.ItemTemplate>
 
                 </CollectionView>
-
-                <!-- FULL DETAIL IN PANEL -->
-                <Grid
-                    x:Name="DetailFullPanel"
-                    Grid.Row="1"
-                    Grid.RowSpan="3"
-                    IsVisible="False"
-                    BackgroundColor="White">
-
-                    <Button
-                        Text="✕"
-                        FontSize="20"
-                        WidthRequest="40"
-                        HeightRequest="40"
-                        HorizontalOptions="End"
-                        VerticalOptions="Start"
-                        BackgroundColor="Transparent"
-                        TextColor="Black"
-                        Clicked="CloseDetail_Click"/>
-
-                    <ScrollView Margin="0,40,0,0">
-
-                        <VerticalStackLayout Spacing="10" Padding="10">
-
-                            <Image
-                                x:Name="FullImage"
-                                HeightRequest="200"
-                                Aspect="AspectFill"/>
-
-                            <Label
-                                x:Name="FullName"
-                                FontSize="22"
-                                FontAttributes="Bold"/>
-
-                            <Label
-                                x:Name="FullDescription"
-                                FontSize="15"
-                                TextColor="Gray"
-                                LineBreakMode="WordWrap"
-                                HorizontalOptions="Fill"
-                                VerticalOptions="Start"/>
-
-                            <Label
-                                x:Name="FullDistance"
-                                FontSize="15"
-                                TextColor="#007AFF"/>
-
-                            <Button
-                                Text="Chỉ đường"
-                                Clicked="RouteButton_Click"
-                                BackgroundColor="#007AFF"
-                                TextColor="White"/>
-
-                        </VerticalStackLayout>
-
-                    </ScrollView>
-
-                </Grid>
 
             </Grid>
 

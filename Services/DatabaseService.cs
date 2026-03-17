@@ -20,6 +20,8 @@ namespace FoodStreetGuide.Services
 
             // 🔥 Tạo bảng Poi nếu chưa có
             await _database.CreateTableAsync<Poi>();
+
+            await _database.CreateTableAsync<RouteCache>();
         }
 
         // 🔥 Lấy toàn bộ POI
@@ -70,6 +72,20 @@ namespace FoodStreetGuide.Services
             {
                 await _database.InsertAllAsync(pois);
             }
+        }
+        public async Task SaveRouteAsync(RouteCache route)
+        {
+            await _database.InsertAsync(route);
+        }
+
+        public async Task<RouteCache> GetRouteAsync(double slat, double slon, double elat, double elon)
+        {
+            return await _database.Table<RouteCache>()
+                .FirstOrDefaultAsync(r =>
+                    Math.Abs(r.StartLat - slat) < 0.001 &&
+                    Math.Abs(r.StartLon - slon) < 0.001 &&
+                    Math.Abs(r.EndLat - elat) < 0.001 &&
+                    Math.Abs(r.EndLon - elon) < 0.001);
         }
     }
 }
