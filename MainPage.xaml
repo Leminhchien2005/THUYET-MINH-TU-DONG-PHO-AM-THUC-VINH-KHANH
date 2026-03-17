@@ -11,6 +11,8 @@
         <maps:Map
             x:Name="MyMap"
             IsShowingUser="True"
+            IsScrollEnabled="True"
+            IsZoomEnabled="True"
             MapType="Street"/>
 
         <!-- SEARCH -->
@@ -52,6 +54,35 @@
             FontSize="12"
             ZIndex="5"/>
 
+        <!-- ZOOM CONTROLS -->
+        <VerticalStackLayout
+     Margin="0,0,15,350"
+     Spacing="10"
+     HorizontalOptions="End"
+     VerticalOptions="End"
+     ZIndex="8">
+            <Button
+         Text="+"
+         FontSize="22"
+         FontAttributes="Bold"
+         BackgroundColor="White"
+         TextColor="Black"
+         WidthRequest="45"
+         HeightRequest="45"
+         CornerRadius="22"
+         Clicked="ZoomIn_Clicked"/>
+            <Button
+         Text="-"
+         FontSize="24"
+         FontAttributes="Bold"
+         BackgroundColor="White"
+         TextColor="Black"
+         WidthRequest="45"
+         HeightRequest="45"
+         CornerRadius="22"
+         Clicked="ZoomOut_Clicked"/>
+        </VerticalStackLayout>
+
         <!-- BOTTOM PANEL -->
         <Border
             x:Name="BottomPanel"
@@ -78,6 +109,7 @@
 
                 <!-- TITLE -->
                 <Label
+                    x:Name="TitleLabel"
                     Grid.Row="1"
                     Text="Quán gần bạn"
                     FontSize="18"
@@ -93,6 +125,7 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="100"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="30"/>
                     </Grid.ColumnDefinitions>
 
                     <Image
@@ -127,14 +160,28 @@
                                 TextColor="White"/>
 
                             <Button
-                                Text="Xem chi tiết"
-                                Clicked="DetailButton_Click"
+                                Text="Lưu yêu thích"
+                                Clicked="FavoriteButton_Click"
                                 BackgroundColor="#EEEEEE"
                                 TextColor="Black"/>
 
                         </HorizontalStackLayout>
 
                     </VerticalStackLayout>
+
+                    <Button
+                        Grid.Column="2"
+                        Text="✕"
+                        FontSize="16"
+                        BackgroundColor="Transparent"
+                        TextColor="Gray"
+                        Padding="0"
+                        Margin="0"
+                        WidthRequest="30"
+                        HeightRequest="30"
+                        VerticalOptions="Start"
+                        HorizontalOptions="End"
+                        Clicked="ClearSelection_Click"/>
 
                 </Grid>
 
@@ -194,64 +241,67 @@
 
                 </CollectionView>
 
+                <!-- FULL DETAIL IN PANEL -->
+                <Grid
+                    x:Name="DetailFullPanel"
+                    Grid.Row="1"
+                    Grid.RowSpan="3"
+                    IsVisible="False"
+                    BackgroundColor="White">
+
+                    <Button
+                        Text="✕"
+                        FontSize="20"
+                        WidthRequest="40"
+                        HeightRequest="40"
+                        HorizontalOptions="End"
+                        VerticalOptions="Start"
+                        BackgroundColor="Transparent"
+                        TextColor="Black"
+                        Clicked="CloseDetail_Click"/>
+
+                    <ScrollView Margin="0,40,0,0">
+
+                        <VerticalStackLayout Spacing="10" Padding="10">
+
+                            <Image
+                                x:Name="FullImage"
+                                HeightRequest="200"
+                                Aspect="AspectFill"/>
+
+                            <Label
+                                x:Name="FullName"
+                                FontSize="22"
+                                FontAttributes="Bold"/>
+
+                            <Label
+                                x:Name="FullDescription"
+                                FontSize="15"
+                                TextColor="Gray"
+                                LineBreakMode="WordWrap"
+                                HorizontalOptions="Fill"
+                                VerticalOptions="Start"/>
+
+                            <Label
+                                x:Name="FullDistance"
+                                FontSize="15"
+                                TextColor="#007AFF"/>
+
+                            <Button
+                                Text="Chỉ đường"
+                                Clicked="RouteButton_Click"
+                                BackgroundColor="#007AFF"
+                                TextColor="White"/>
+
+                        </VerticalStackLayout>
+
+                    </ScrollView>
+
+                </Grid>
+
             </Grid>
 
         </Border>
-
-        <!-- FULL DETAIL PANEL -->
-        <Grid
-            x:Name="DetailFullPanel"
-            IsVisible="False"
-            BackgroundColor="White"
-            ZIndex="20">
-
-            <Button
-                Text="✕"
-                FontSize="20"
-                WidthRequest="40"
-                HeightRequest="40"
-                HorizontalOptions="End"
-                VerticalOptions="Start"
-                Margin="10"
-                BackgroundColor="Black"
-                Clicked="CloseDetail_Click"/>
-
-            <ScrollView Margin="0,40,0,0">
-
-                <VerticalStackLayout Spacing="10" Padding="10">
-
-                    <Image
-                        x:Name="FullImage"
-                        HeightRequest="200"
-                        Aspect="AspectFill"/>
-
-                    <Label
-                        x:Name="FullName"
-                        FontSize="22"
-                        FontAttributes="Bold"/>
-
-                    <Label
-                        x:Name="FullDescription"
-                        FontSize="15"
-                        TextColor="Gray"
-                        LineBreakMode="WordWrap"
-                        HorizontalOptions="Fill"
-                        VerticalOptions="Start"/>
-
-                    <Label
-                        x:Name="FullDistance"
-                        FontSize="15"
-                        TextColor="#007AFF"/>
-
-                    <Button
-                        Text="Chỉ đường"
-                        Clicked="RouteButton_Click"/>
-
-                </VerticalStackLayout>
-
-            </ScrollView>
-
-        </Grid>
 
     </Grid>
 
