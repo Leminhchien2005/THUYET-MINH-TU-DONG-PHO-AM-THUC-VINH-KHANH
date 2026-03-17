@@ -5,7 +5,6 @@ using Microsoft.Maui.Maps;
 using Microsoft.Maui.Networking;
 using System.Diagnostics;
 using System.Text.Json;
-using System.Xml;
 using System.Net.Http;
 
 namespace FoodStreetGuide;
@@ -26,8 +25,36 @@ public partial class MainPage : ContentPage
     public MainPage()
     {
         InitializeComponent();
+        MyMap.MapClicked += MyMap_MapClicked;
     }
 
+    private void MyMap_MapClicked(object sender, MapClickedEventArgs e)
+    {
+        MyMap.MapElements.Clear();
+        double targetY = this.Height * 0.8;
+        BottomPanel.TranslateTo(0, targetY, 200);
+    }
+
+
+    private void ZoomIn_Clicked(object sender, EventArgs e)
+    {
+        if (MyMap.VisibleRegion != null)
+        {
+            var center = MyMap.VisibleRegion.Center;
+            var radius = MyMap.VisibleRegion.Radius;
+            MyMap.MoveToRegion(MapSpan.FromCenterAndRadius(center, Distance.FromKilometers(radius.Kilometers * 0.5)));
+        }
+    }
+
+    private void ZoomOut_Clicked(object sender, EventArgs e)
+    {
+        if (MyMap.VisibleRegion != null)
+        {
+            var center = MyMap.VisibleRegion.Center;
+            var radius = MyMap.VisibleRegion.Radius;
+            MyMap.MoveToRegion(MapSpan.FromCenterAndRadius(center, Distance.FromKilometers(radius.Kilometers * 2.0)));
+        }
+    }
     protected override async void OnAppearing()
     {
         base.OnAppearing();
@@ -217,9 +244,11 @@ public partial class MainPage : ContentPage
         );
 
         // hiện detail
+        PoiList.IsVisible = false;
         DetailPanel.IsVisible = true;
 
-        DetailName.Text = poi.Name;
+        TitleLabel.Text = poi.Name ?? "Quán gần bạn";
+
         DetailDescription.Text = poi.Description;
         DetailDistance.Text = $"Khoảng cách {poi.DistanceKm:0.00} km";
 
@@ -230,91 +259,172 @@ public partial class MainPage : ContentPage
         BottomPanel.TranslateTo(0, 0, 200);
     }
 
+    void ClearSelection_Click(object sender, EventArgs e)
+    {
+        _selectedPoi = null;
+        PoiList.SelectedItem = null;
+        DetailPanel.IsVisible = false;
+        PoiList.IsVisible = true;
+        TitleLabel.Text = "Quán gần bạn";
+        MyMap.MapElements.Clear();
+    }
+
     async Task<List<Location>> GetRouteAsync(Location start, Location end)
     {
-        var url =
-            $"https://router.project-osrm.org/route/v1/driving/{start.Longitude},{start.Latitude};{end.Longitude},{end.Latitude}?overview=full&geometries=geojson";
-
-        var http = new HttpClient();
-        var json = await http.GetStringAsync(url);
-
-        var doc = JsonDocument.Parse(json);
-
-        var coordinates =
-            doc.RootElement
-            .GetProperty("routes")[0]
-            .GetProperty("geometry")
-            .GetProperty("coordinates");
-
-        var points = new List<Location>();
-
-        foreach (var c in coordinates.EnumerateArray())
+        try
         {
-            double lon = c[0].GetDouble();
-            double lat = c[1].GetDouble();
+            var url =
+            $"https://router.project-osrm.org/route/v1/driving/{start.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)},{start.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)};{end.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture)},{end.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture)}?overview=full&geometries=geojson";
 
-            points.Add(new Location(lat, lon));
+            var http = new HttpClient();
+
+            var json = await http.GetStringAsync(url);
+
+            var doc = JsonDocument.Parse(json);
+
+            var routes = doc.RootElement.GetProperty("routes");
+
+            if (routes.GetArrayLength() == 0)
+                return new List<Location>();
+
+            var coordinates =
+            routes[0].GetProperty("geometry").GetProperty("coordinates");
+
+            var points = new List<Location>();
+
+            foreach (var c in coordinates.EnumerateArray())
+            {
+                points.Add(new Location(
+                    c[1].GetDouble(),
+                    c[0].GetDouble()));
+            }
+
+            return points;
         }
-
-        return points;
+        catch
+        {
+            return new List<Location>();
+        }
     }
+
+    async Task SaveRouteAsync(Location start, Location end, List<Location> points)
+    {
+        var route = new RouteCache
+        {
+            StartLat = start.Latitude,
+            StartLon = start.Longitude,
+            EndLat = end.Latitude,
+            EndLon = end.Longitude,
+            PointsJson = JsonSerializer.Serialize(points)
+        };
+
+        await _database.SaveRouteAsync(route);
+    }
+
+    async Task<List<Location>> LoadRouteAsync(Location start, Location end)
+    {
+        var route = await _database.GetRouteAsync(
+            start.Latitude,
+            start.Longitude,
+            end.Latitude,
+            end.Longitude);
+
+        if (route == null)
+            return new List<Location>();
+
+        return JsonSerializer.Deserialize<List<Location>>(route.PointsJson);
+    }
+
+
     async void RouteButton_Click(object sender, EventArgs e)
     {
         if (_selectedPoi == null || _lastLocation == null)
             return;
 
-        MyMap.MapElements.Clear();
-
-        var points = await GetRouteAsync(
-            _lastLocation,
-            new Location(_selectedPoi.Latitude, _selectedPoi.Longitude));
-
-        var polyline = new Polyline
+        try
         {
-            StrokeColor = Colors.Blue,
-            StrokeWidth = 6
-        };
+            MyMap.MapElements.Clear();
 
-        foreach (var p in points)
-            polyline.Geopath.Add(p);
+            var start = _lastLocation;
+            var end = new Location(_selectedPoi.Latitude, _selectedPoi.Longitude);
 
-        MyMap.MapElements.Add(polyline);
+            List<Location> points;
 
-        var center = new Location(
-            (_lastLocation.Latitude + _selectedPoi.Latitude) / 2,
-            (_lastLocation.Longitude + _selectedPoi.Longitude) / 2);
+            if (Connectivity.Current.NetworkAccess == NetworkAccess.Internet)
+            {
+                // ONLINE
+                points = await GetRouteAsync(start, end);
 
-        MyMap.MoveToRegion(
-            MapSpan.FromCenterAndRadius(
-                center,
-                Distance.FromKilometers(1)
-            ));
+                if (points != null && points.Count > 0)
+                {
+                    await SaveRouteAsync(start, end, points);
+                }
+            }
+            else
+            {
+                // OFFLINE
+                points = await LoadRouteAsync(start, end);
+
+                if (points == null || points.Count == 0)
+                {
+                    await DisplayAlert("Offline", "Chưa có route lưu trước đó", "OK");
+                    return;
+                }
+            }
+
+
+            if (points == null || points.Count == 0)
+            {
+                await DisplayAlert("Lỗi", "Không lấy được đường đi", "OK");
+                return;
+            }
+            var polyline = new Polyline
+            {
+                StrokeColor = Colors.Blue,
+                StrokeWidth = 6
+            };
+
+            foreach (var p in points)
+                polyline.Geopath.Add(p);
+
+            MyMap.MapElements.Add(polyline);
+
+            if (points.Count > 0)
+            {
+                var minLat = points.Min(p => p.Latitude);
+                var maxLat = points.Max(p => p.Latitude);
+                var minLon = points.Min(p => p.Longitude);
+                var maxLon = points.Max(p => p.Longitude);
+
+                var centerLat = (minLat + maxLat) / 2;
+                var centerLon = (minLon + maxLon) / 2;
+
+                var latDegrees = (maxLat - minLat) * 1.5;
+                var lonDegrees = (maxLon - minLon) * 1.5;
+
+                if (latDegrees == 0) latDegrees = 0.01;
+                if (lonDegrees == 0) lonDegrees = 0.01;
+
+                MyMap.MoveToRegion(new MapSpan(new Location(centerLat, centerLon), latDegrees, lonDegrees));
+            }
+
+            double targetY = this.Height * 0.8;
+            await BottomPanel.TranslateTo(0, targetY, 200);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(ex.Message);
+        }
     }
 
-    void DetailButton_Click(object sender, EventArgs e)
+    void FavoriteButton_Click(object sender, EventArgs e)
     {
         if (_selectedPoi == null)
             return;
 
-        var poi = _selectedPoi;
-
-        FullName.Text = poi.Name;
-        FullDescription.Text = poi.Description;
-        FullDistance.Text = $"Khoảng cách {poi.DistanceKm:0.00} km";
-
-        if (!string.IsNullOrEmpty(poi.ImageUrl))
-            FullImage.Source = poi.ImageUrl;
-
-        DetailFullPanel.IsVisible = true;
+        // Xử lý lưu yêu thích ở đây
+        DisplayAlert("Thông báo", $"Đã lưu '{_selectedPoi.Name}' vào danh sách yêu thích.", "OK");
     }
-
-    async void CloseDetail_Click(object sender, EventArgs e)
-    {
-        DetailFullPanel.IsVisible = false;
-
-        await BottomPanel.TranslateTo(0, 280, 200);
-    }
-
 
     // SEARCH
     void SearchBar_TextChanged(object sender, TextChangedEventArgs e)
@@ -338,6 +448,7 @@ public partial class MainPage : ContentPage
         switch (e.StatusType)
         {
             case GestureStatus.Started:
+                BottomPanel.CancelAnimations();
                 panelStart = BottomPanel.TranslationY;
                 break;
 
@@ -356,11 +467,12 @@ public partial class MainPage : ContentPage
                 break;
 
             case GestureStatus.Completed:
+            case GestureStatus.Canceled:
 
                 if (BottomPanel.TranslationY < closed / 2)
-                    await BottomPanel.TranslateToAsync(0, full, 200);
+                    await BottomPanel.TranslateTo(0, full, 250, Easing.CubicOut);
                 else
-                    await BottomPanel.TranslateToAsync(0, closed, 200);
+                    await BottomPanel.TranslateTo(0, closed, 250, Easing.CubicOut);
 
                 break;
         }
