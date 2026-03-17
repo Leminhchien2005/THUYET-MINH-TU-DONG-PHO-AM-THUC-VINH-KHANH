@@ -213,7 +213,7 @@
                 HorizontalOptions="End"
                 VerticalOptions="Start"
                 Margin="10"
-                BackgroundColor="Transparent"
+                BackgroundColor="Black"
                 Clicked="CloseDetail_Click"/>
 
             <ScrollView Margin="0,40,0,0">
@@ -233,7 +233,10 @@
                     <Label
                         x:Name="FullDescription"
                         FontSize="15"
-                        TextColor="Gray"/>
+                        TextColor="Gray"
+                        LineBreakMode="WordWrap"
+                        HorizontalOptions="Fill"
+                        VerticalOptions="Start"/>
 
                     <Label
                         x:Name="FullDistance"

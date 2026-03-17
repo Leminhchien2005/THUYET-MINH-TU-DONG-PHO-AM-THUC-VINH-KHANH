@@ -4,7 +4,9 @@ using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Maps;
 using Microsoft.Maui.Networking;
 using System.Diagnostics;
+using System.Text.Json;
 using System.Xml;
+using System.Net.Http;
 
 namespace FoodStreetGuide;
 
@@ -228,15 +230,65 @@ public partial class MainPage : ContentPage
         BottomPanel.TranslateTo(0, 0, 200);
     }
 
+    async Task<List<Location>> GetRouteAsync(Location start, Location end)
+    {
+        var url =
+            $"https://router.project-osrm.org/route/v1/driving/{start.Longitude},{start.Latitude};{end.Longitude},{end.Latitude}?overview=full&geometries=geojson";
+
+        var http = new HttpClient();
+        var json = await http.GetStringAsync(url);
+
+        var doc = JsonDocument.Parse(json);
+
+        var coordinates =
+            doc.RootElement
+            .GetProperty("routes")[0]
+            .GetProperty("geometry")
+            .GetProperty("coordinates");
+
+        var points = new List<Location>();
+
+        foreach (var c in coordinates.EnumerateArray())
+        {
+            double lon = c[0].GetDouble();
+            double lat = c[1].GetDouble();
+
+            points.Add(new Location(lat, lon));
+        }
+
+        return points;
+    }
     async void RouteButton_Click(object sender, EventArgs e)
     {
-        if (_selectedPoi == null)
+        if (_selectedPoi == null || _lastLocation == null)
             return;
 
-        var url =
-            $"https://www.google.com/maps/dir/?api=1&destination={_selectedPoi.Latitude},{_selectedPoi.Longitude}";
+        MyMap.MapElements.Clear();
 
-        await Launcher.Default.OpenAsync(url);
+        var points = await GetRouteAsync(
+            _lastLocation,
+            new Location(_selectedPoi.Latitude, _selectedPoi.Longitude));
+
+        var polyline = new Polyline
+        {
+            StrokeColor = Colors.Blue,
+            StrokeWidth = 6
+        };
+
+        foreach (var p in points)
+            polyline.Geopath.Add(p);
+
+        MyMap.MapElements.Add(polyline);
+
+        var center = new Location(
+            (_lastLocation.Latitude + _selectedPoi.Latitude) / 2,
+            (_lastLocation.Longitude + _selectedPoi.Longitude) / 2);
+
+        MyMap.MoveToRegion(
+            MapSpan.FromCenterAndRadius(
+                center,
+                Distance.FromKilometers(1)
+            ));
     }
 
     void DetailButton_Click(object sender, EventArgs e)
@@ -262,6 +314,7 @@ public partial class MainPage : ContentPage
 
         await BottomPanel.TranslateTo(0, 280, 200);
     }
+
 
     // SEARCH
     void SearchBar_TextChanged(object sender, TextChangedEventArgs e)
@@ -312,4 +365,5 @@ public partial class MainPage : ContentPage
                 break;
         }
     }
+
 }

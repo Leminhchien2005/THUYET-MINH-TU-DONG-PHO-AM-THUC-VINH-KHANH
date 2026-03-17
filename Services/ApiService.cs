@@ -9,11 +9,14 @@ public class ApiService
 
     public ApiService()
     {
-        _httpClient = new HttpClient();
         _httpClient = new HttpClient
         {
-            BaseAddress = new Uri("http://10.0.2.2:5057"),// may ao
-            //BaseAddress = new Uri("http://192.168.1.19:5057/"),// may that  
+            // Dùng cho máy ảo (Android Emulator)
+             BaseAddress = new Uri("http://10.0.2.2:5057"),
+
+            // Dùng cho máy thật (đổi IP đúng máy)
+            //BaseAddress = new Uri("http://192.168.1.9:5057/"),
+
             Timeout = TimeSpan.FromSeconds(3)
         };
     }
