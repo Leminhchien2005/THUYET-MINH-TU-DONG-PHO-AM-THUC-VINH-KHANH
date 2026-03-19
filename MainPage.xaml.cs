@@ -6,6 +6,7 @@ using Microsoft.Maui.Networking;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Net.Http;
+using System.Threading;
 
 namespace FoodStreetGuide;
 
@@ -21,6 +22,7 @@ public partial class MainPage : ContentPage
     double panelStart;
 
     Poi? _selectedPoi;
+    CancellationTokenSource? _speechCts;
 
     public MainPage()
     {
@@ -178,6 +180,16 @@ public partial class MainPage : ContentPage
                 Location = new Location(poi.Latitude, poi.Longitude)
             };
 
+            // Bắt sự kiện khi chạm vào Pin trên bản đồ
+            pin.MarkerClicked += (s, e) =>
+            {
+                // Ẩn bảng thông tin mặc định của bản đồ (nếu muốn tự dùng UI của mình)
+                e.HideInfoWindow = true;
+
+                // Hiển thị panel chi tiết phía dưới
+                ShowPoiDetails(poi);
+            };
+
             MyMap.Pins.Add(pin);
         }
     }
@@ -231,6 +243,11 @@ public partial class MainPage : ContentPage
         if (poi == null)
             return;
 
+        ShowPoiDetails(poi);
+    }
+
+    private void ShowPoiDetails(Poi poi)
+    {
         _selectedPoi = poi;
 
         var location = new Location(poi.Latitude, poi.Longitude);
@@ -261,6 +278,12 @@ public partial class MainPage : ContentPage
 
     void ClearSelection_Click(object sender, EventArgs e)
     {
+        if (_speechCts != null && !_speechCts.IsCancellationRequested)
+        {
+            _speechCts.Cancel();
+            // Khối finally của TextToSpeech sẽ làm nhiệm vụ dọn dẹp
+        }
+
         _selectedPoi = null;
         PoiList.SelectedItem = null;
         DetailPanel.IsVisible = false;
@@ -422,20 +445,47 @@ public partial class MainPage : ContentPage
         if (_selectedPoi == null)
             return;
 
+        // Nếu đang phát thì yêu cầu dừng lại
+        if (_speechCts != null && !_speechCts.IsCancellationRequested)
+        {
+            _speechCts.Cancel();
+            // Việc đổi text và dispose sẽ do khối finally của luồng đang phát đảm nhận
+            return;
+        }
+
         string textToRead = !string.IsNullOrWhiteSpace(_selectedPoi.Description) 
             ? _selectedPoi.Description 
             : (!string.IsNullOrWhiteSpace(_selectedPoi.Name) ? _selectedPoi.Name : "Không có thông tin");
+
+        // Bắt đầu phát mới
+        _speechCts = new CancellationTokenSource();
+        PlayButton.Text = "⏹️ Dừng";
 
         try
         {
             await TextToSpeech.Default.SpeakAsync(textToRead, new SpeechOptions 
             {
                 Volume = 1.0f
-            });
+            }, cancelToken: _speechCts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Bị hủy phát thành công
         }
         catch (Exception ex)
         {
             await DisplayAlert("Lỗi", "Không thể phát âm thanh: " + ex.Message, "OK");
+        }
+        finally
+        {
+            // Dọn dẹp
+            if (_speechCts != null)
+            {
+                _speechCts.Dispose();
+                _speechCts = null;
+            }
+            // Khôi phục chữ "Phát"
+            PlayButton.Text = "📢 Phát";
         }
     }
 

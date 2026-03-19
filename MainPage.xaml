@@ -161,6 +161,7 @@
                                 TextColor="White"/>
 
                             <Button
+                                x:Name="PlayButton"
                                 Text="📢 Phát"
                                 Clicked="PlayButton_Click"
                                 BackgroundColor="#EEEEEE"
@@ -256,7 +257,7 @@
             HorizontalOptions="End"
             VerticalOptions="Start"
             Margin="0,100,15,0"
-            ZIndex="10"
+            ZIndex="9"
             Clicked="OnSettingsClicked">
 
             <Button.Shadow>
