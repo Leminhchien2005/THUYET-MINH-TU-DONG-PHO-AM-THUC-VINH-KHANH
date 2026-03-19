@@ -1,0 +1,16 @@
+﻿@model FoodStreetWeb.Models.Poi
+
+<h2>Xóa quán ăn</h2>
+
+<h3>Bạn có chắc muốn xóa?</h3>
+
+<div>
+    <p><strong>@Model.Name</strong></p>
+    <p>@Model.Description</p>
+</div>
+
+<form asp-action="Delete" method="post">
+    <input type="hidden" asp-for="Id" />
+    <button type="submit">Xóa</button>
+    <a asp-action="Index">Hủy</a>
+</form>

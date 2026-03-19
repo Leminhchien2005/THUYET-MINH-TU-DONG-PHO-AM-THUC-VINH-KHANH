@@ -1,0 +1,112 @@
+﻿@model IEnumerable<FoodStreetWeb.Models.PoiRequest>
+
+<h2>Yêu cầu đã gửi</h2>
+
+<form method="get" style="margin-bottom:20px">
+
+    <input type="text"
+           name="search"
+           placeholder="Tên quán"
+           class="form-control"
+           style="width:200px;display:inline-block" />
+
+    <select name="type" class="form-control" style="width:150px;display:inline-block">
+        <option value="">Loại yêu cầu</option>
+        <option value="Create">Thêm quán</option>
+        <option value="Update">Chỉnh sửa</option>
+        <option value="Delete">Xóa quán</option>
+    </select>
+
+    <select name="status" class="form-control" style="width:150px;display:inline-block">
+        <option value="">Trạng thái</option>
+        <option value="PendingCreate">Chờ duyệt</option>
+        <option value="PendingUpdate">Chờ duyệt</option>
+        <option value="Approved">Đã duyệt</option>
+        <option value="Rejected">Bị từ chối</option>
+    </select>
+
+    <input type="date"
+           name="date"
+           class="form-control"
+           style="width:180px;display:inline-block" />
+
+    <button type="submit" class="btn btn-primary">
+        Tìm
+    </button>
+
+    <a asp-action="Requests" class="btn btn-secondary">
+        Reset
+    </a>
+
+</form>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Tên quán</th>
+            <th>Loại yêu cầu</th>
+            <th>Thời gian gửi</th>
+            <th>Trạng thái</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+
+                <td>
+                    <a asp-action="RequestDetails"
+                           asp-route-id="@item.Id">
+
+                        @if (item.Poi != null)
+                        {
+                            @item.Poi.Name
+                        }
+                        else
+                        {
+                            @item.Name
+                        }
+
+                    </a>
+                </td>
+
+                <td>
+                    @if (item.RequestType == FoodStreetWeb.Models.PoiRequestType.Create)
+                    {
+                        <span>Thêm quán</span>
+                    }
+                    else if (item.RequestType == FoodStreetWeb.Models.PoiRequestType.Update)
+                    {
+                        <span>Chỉnh sửa</span>
+                    }
+                    else if (item.RequestType == FoodStreetWeb.Models.PoiRequestType.Delete)
+                    {
+                        <span>Xóa quán</span>
+                    }
+                </td>
+
+                <td>
+                    @item.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                </td>
+
+                <td>
+                    @if (item.Status == FoodStreetWeb.Models.PoiStatus.PendingCreate ||
+                                             item.Status == FoodStreetWeb.Models.PoiStatus.PendingUpdate)
+                    {
+                        <span>Chờ duyệt</span>
+                    }
+                    else if (item.Status == FoodStreetWeb.Models.PoiStatus.Approved)
+                    {
+                        <span style="color:green;">Đã duyệt</span>
+                    }
+                    else if (item.Status == FoodStreetWeb.Models.PoiStatus.Rejected)
+                    {
+                        <span style="color:red;">Bị từ chối</span>
+                    }
+                </td>
+
+            </tr>
+        }
+    </tbody>
+</table>
