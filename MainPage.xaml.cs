@@ -417,12 +417,26 @@ public partial class MainPage : ContentPage
         }
     }
 
-    void PlayButton_Click(object sender, EventArgs e)
+    async void PlayButton_Click(object sender, EventArgs e)
     {
         if (_selectedPoi == null)
             return;
 
-        DisplayAlert("Thông báo", $"Đang phát thông tin cho '{_selectedPoi.Name}'.", "OK");
+        string textToRead = !string.IsNullOrWhiteSpace(_selectedPoi.Description) 
+            ? _selectedPoi.Description 
+            : (!string.IsNullOrWhiteSpace(_selectedPoi.Name) ? _selectedPoi.Name : "Không có thông tin");
+
+        try
+        {
+            await TextToSpeech.Default.SpeakAsync(textToRead, new SpeechOptions 
+            {
+                Volume = 1.0f
+            });
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Lỗi", "Không thể phát âm thanh: " + ex.Message, "OK");
+        }
     }
 
     // SEARCH
