@@ -2,6 +2,7 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:maps="clr-namespace:Microsoft.Maui.Controls.Maps;assembly=Microsoft.Maui.Controls.Maps"
+    xmlns:res="clr-namespace:FoodStreetGuide.Resources.Strings"
     x:Class="FoodStreetGuide.MainPage"
     NavigationPage.HasNavigationBar="False">
 
@@ -37,7 +38,7 @@
                 <Entry
                     x:Name="SearchEntry"
                     Grid.Column="1"
-                    Placeholder="Tìm quán ăn..."
+                    Placeholder="{x:Static res:AppResources.SearchPlaceholder}"
                     TextColor="Black"
                     BackgroundColor="Transparent"
                     TextChanged="SearchBar_TextChanged"/>
@@ -56,31 +57,34 @@
 
         <!-- ZOOM CONTROLS -->
         <VerticalStackLayout
-     Margin="0,0,15,350"
-     Spacing="10"
-     HorizontalOptions="End"
-     VerticalOptions="End"
-     ZIndex="8">
+            Margin="0,0,15,350"
+            Spacing="10"
+            HorizontalOptions="End"
+            VerticalOptions="End"
+            ZIndex="8">
+
             <Button
-         Text="+"
-         FontSize="22"
-         FontAttributes="Bold"
-         BackgroundColor="White"
-         TextColor="Black"
-         WidthRequest="45"
-         HeightRequest="45"
-         CornerRadius="22"
-         Clicked="ZoomIn_Clicked"/>
+                Text="+"
+                FontSize="22"
+                FontAttributes="Bold"
+                BackgroundColor="White"
+                TextColor="Black"
+                WidthRequest="45"
+                HeightRequest="45"
+                CornerRadius="22"
+                Clicked="ZoomIn_Clicked"/>
+
             <Button
-         Text="-"
-         FontSize="24"
-         FontAttributes="Bold"
-         BackgroundColor="White"
-         TextColor="Black"
-         WidthRequest="45"
-         HeightRequest="45"
-         CornerRadius="22"
-         Clicked="ZoomOut_Clicked"/>
+                Text="-"
+                FontSize="24"
+                FontAttributes="Bold"
+                BackgroundColor="White"
+                TextColor="Black"
+                WidthRequest="45"
+                HeightRequest="45"
+                CornerRadius="22"
+                Clicked="ZoomOut_Clicked"/>
+
         </VerticalStackLayout>
 
         <!-- BOTTOM PANEL -->
@@ -111,7 +115,7 @@
                 <Label
                     x:Name="TitleLabel"
                     Grid.Row="1"
-                    Text="Quán gần bạn"
+                    Text="{x:Static res:AppResources.NearbyTitle}"
                     FontSize="18"
                     FontAttributes="Bold"
                     Margin="0,10"/>
@@ -151,7 +155,7 @@
                         <HorizontalStackLayout Spacing="10" Margin="0,8,0,0">
 
                             <Button
-                                Text="Chỉ đường"
+                                Text="{x:Static res:AppResources.Route}"
                                 Clicked="RouteButton_Click"
                                 BackgroundColor="#007AFF"
                                 TextColor="White"/>
@@ -172,8 +176,6 @@
                         FontSize="16"
                         BackgroundColor="Transparent"
                         TextColor="Gray"
-                        Padding="0"
-                        Margin="0"
                         WidthRequest="30"
                         HeightRequest="30"
                         VerticalOptions="Start"
@@ -241,6 +243,30 @@
             </Grid>
 
         </Border>
+
+        <!-- NÚT CÀI ĐẶT NỔI -->
+        <Button
+            Text="⚙️"
+            FontSize="20"
+            WidthRequest="50"
+            HeightRequest="50"
+            CornerRadius="25"
+            BackgroundColor="White"
+            TextColor="Black"
+            HorizontalOptions="End"
+            VerticalOptions="Start"
+            Margin="0,100,15,0"
+            ZIndex="20"
+            Clicked="OnSettingsClicked">
+
+            <Button.Shadow>
+                <Shadow Brush="Black"
+                        Opacity="0.3"
+                        Radius="10"
+                        Offset="2,2"/>
+            </Button.Shadow>
+
+        </Button>
 
     </Grid>
 

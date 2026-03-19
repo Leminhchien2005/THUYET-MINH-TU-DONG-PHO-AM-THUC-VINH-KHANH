@@ -1,0 +1,126 @@
+﻿@model IEnumerable<FoodStreetWeb.Models.PoiRequest>
+
+<h2>
+    Danh sách yêu cầu từ chủ quán
+    <span style="color:red">
+        (@ViewBag.PendingCount đang chờ duyệt)
+    </span>
+</h2>
+
+<form method="get" style="margin-bottom:20px;">
+
+    <input type="text"
+           name="search"
+           placeholder="Tên quán"
+           style="padding:5px;" />
+
+    <select name="type">
+        <option value="">Loại yêu cầu</option>
+        <option value="Create">Thêm</option>
+        <option value="Update">Chỉnh sửa</option>
+        <option value="Delete">Xóa</option>
+    </select>
+
+    <select name="status">
+        <option value="">Trạng thái</option>
+        <option value="PendingCreate">Chờ duyệt</option>
+        <option value="Approved">Đã duyệt</option>
+        <option value="Rejected">Bị từ chối</option>
+    </select>
+
+    <input type="date" name="date" />
+
+    <button type="submit" class="btn btn-primary">
+        Tìm
+    </button>
+
+    <a asp-action="AdminRequests" class="btn btn-secondary">
+        Reset
+    </a>
+
+</form>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Tên quán</th>
+            <th>Loại yêu cầu</th>
+            <th>Trạng thái</th>
+            <th>Thời gian gửi</th>
+            <th>Hành động</th>
+        </tr>
+    </thead>
+
+    <tbody>
+
+        @foreach (var item in Model)
+        {
+            <tr>
+
+                <td>
+                    @if (item.Poi != null)
+                    {
+                        <a asp-action="RequestDetails" asp-route-id="@item.Id">
+                            @item.Poi.Name
+                        </a>
+                    }
+                    else
+                    {
+                        <a asp-action="RequestDetails" asp-route-id="@item.Id">
+                            @item.Name
+                        </a>
+                    }
+                </td>
+
+                <td>
+                    @if (item.RequestType == PoiRequestType.Create)
+                    {
+                        <span>Thêm quán</span>
+                    }
+                    else if (item.RequestType == PoiRequestType.Update)
+                    {
+                        <span>Chỉnh sửa</span>
+                    }
+                    else if (item.RequestType == PoiRequestType.Delete)
+                    {
+                        <span>Xóa quán</span>
+                    }
+                </td>
+
+                <td>
+                    @if (item.Status == PoiStatus.PendingCreate || item.Status == PoiStatus.PendingUpdate)
+                    {
+                        <span style="color:orange">Chờ duyệt</span>
+                    }
+                    else if (item.Status == PoiStatus.Approved)
+                    {
+                        <span style="color:green">Đã duyệt</span>
+                    }
+                    else if (item.Status == PoiStatus.Rejected)
+                    {
+                        <span style="color:red">Bị từ chối</span>
+                    }
+                </td>
+
+                <td>
+                    @item.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                </td>
+
+                <td>
+                    @if (item.Status == PoiStatus.PendingCreate || item.Status == PoiStatus.PendingUpdate)
+                    {
+                        <a asp-action="Approve" asp-route-id="@item.Id">Duyệt</a>
+                        <span>|</span>
+
+                        <form asp-action="Reject" asp-route-id="@item.Id" method="post" style="display:inline;">
+                            <input type="hidden" name="reason" value="" />
+                            <button type="submit">Từ chối</button>
+                        </form>
+                    }
+                </td>
+
+            </tr>
+        }
+
+    </tbody>
+</table>

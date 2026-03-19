@@ -477,4 +477,9 @@ public partial class MainPage : ContentPage
         }
     }
 
+    private async void OnSettingsClicked(object sender, EventArgs e)
+    {
+        await Shell.Current.GoToAsync(nameof(SettingsPage));
+    }
+
 }

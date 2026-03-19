@@ -1,0 +1,39 @@
+<ContentPage 
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:res="clr-namespace:FoodStreetGuide.Resources.Strings"
+    x:Class="FoodStreetGuide.SettingsPage"
+    Title="{x:Static res:AppResources.Settings}">
+
+    <VerticalStackLayout Padding="20" Spacing="15">
+
+        <!-- Âm lượng -->
+        <Label 
+            Text="{x:Static res:AppResources.Volume}" 
+            FontAttributes="Bold"/>
+
+        <Slider x:Name="volumeSlider"
+                Minimum="0"
+                Maximum="1"
+                Value="1"/>
+
+        <!-- Ngôn ngữ -->
+        <Label 
+            Text="{x:Static res:AppResources.Language}" 
+            FontAttributes="Bold"/>
+
+        <Picker x:Name="languagePicker">
+            <Picker.Items>
+                <x:String>vi</x:String>
+                <x:String>en</x:String>
+            </Picker.Items>
+        </Picker>
+
+        <!-- Nút lưu -->
+        <Button 
+            Text="{x:Static res:AppResources.Save}" 
+            Clicked="OnSaveClicked"/>
+
+    </VerticalStackLayout>
+
+</ContentPage>
