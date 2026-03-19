@@ -23,7 +23,7 @@ SET @@SESSION.SQL_LOG_BIN= 0;
 -- GTID state at the beginning of the backup 
 --
 
-SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'a2da3451-14e2-11f1-9029-f8cf525edba1:1-219';
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ 'a2da3451-14e2-11f1-9029-f8cf525edba1:1-237';
 
 --
 -- Table structure for table `__efmigrationshistory`
@@ -251,6 +251,35 @@ LOCK TABLES `aspnetusertokens` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `foods`
+--
+
+DROP TABLE IF EXISTS `foods`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `foods` (
+  `Id` int NOT NULL AUTO_INCREMENT,
+  `Name` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
+  `Price` decimal(10,2) DEFAULT NULL,
+  `Description` varchar(500) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
+  `ImageUrl` varchar(500) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL,
+  `PoiId` int DEFAULT NULL,
+  PRIMARY KEY (`Id`),
+  KEY `PoiId` (`PoiId`),
+  CONSTRAINT `foods_ibfk_1` FOREIGN KEY (`PoiId`) REFERENCES `pois` (`Id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `foods`
+--
+
+LOCK TABLES `foods` WRITE;
+/*!40000 ALTER TABLE `foods` DISABLE KEYS */;
+/*!40000 ALTER TABLE `foods` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `poirequests`
 --
 
@@ -282,7 +311,7 @@ CREATE TABLE `poirequests` (
 
 LOCK TABLES `poirequests` WRITE;
 /*!40000 ALTER TABLE `poirequests` DISABLE KEYS */;
-INSERT INTO `poirequests` VALUES (1,NULL,0,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','Pizza ABC',10.123,106.456,500,'Quán pizza ngon','6',3,'2026-03-14 14:43:03.874765','Không hợp lệ'),(2,NULL,0,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','Pizza ABC',10.123,106.456,500,'Quán pizza ngon','6',2,'2026-03-14 14:44:16.269404',NULL),(3,17,1,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','Pizza ABC',10.123,106.456,500,'Quán pizza ngon','6',3,'2026-03-14 14:46:22.132201',NULL),(4,17,2,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','Pizza ABC',10.123,106.456,500,'Quán pizza ngon','6',3,'2026-03-14 14:47:40.515742','nhuw cuc'),(5,NULL,0,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','Pizza ABCa',10.123,106.456,500,'Quán pizza ngon','6',3,'2026-03-14 14:47:55.852688',NULL),(6,NULL,0,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','leuleu',10.757121906630033,106.63444662093299,500,'Quán pizza ngon','6',2,'2026-03-15 18:33:08.870542',NULL),(7,NULL,0,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','mkx',10.760716127654106,106.63600766657966,500,'Quán pizza ngon','6',2,'2026-03-16 01:17:29.448252',NULL),(8,18,1,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','mkx',10.75804945180171,106.63615894311081,500,'Quán pizza ngon','6',2,'2026-03-16 01:25:27.645180',NULL);
+INSERT INTO `poirequests` VALUES (1,NULL,0,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','Pizza ABC',10.123,106.456,500,'Quán pizza ngon','6',3,'2026-03-14 14:43:03.874765','Không hợp lệ'),(2,NULL,0,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','Pizza ABC',10.123,106.456,500,'Quán pizza ngon','6',2,'2026-03-14 14:44:16.269404',NULL),(3,17,1,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','Pizza ABC',10.123,106.456,500,'Quán pizza ngon','6',3,'2026-03-14 14:46:22.132201',NULL),(4,17,2,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','Pizza ABC',10.123,106.456,500,'Quán pizza ngon','6',3,'2026-03-14 14:47:40.515742',NULL),(5,NULL,0,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','Pizza ABCa',10.123,106.456,500,'Quán pizza ngon','6',3,'2026-03-14 14:47:55.852688',NULL),(6,NULL,0,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','leuleu',10.757121906630033,106.63444662093299,500,'Quán pizza ngon','6',2,'2026-03-15 18:33:08.870542',NULL),(7,NULL,0,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','mkx',10.760716127654106,106.63600766657966,500,'Quán pizza ngon','6',2,'2026-03-16 01:17:29.448252',NULL),(8,18,1,'7fdce239-87f9-4796-8cf9-7f3875a5aeb9','mkx',10.75804945180171,106.63615894311081,500,'Quán pizza ngon','6',2,'2026-03-16 01:25:27.645180',NULL);
 /*!40000 ALTER TABLE `poirequests` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -329,4 +358,4 @@ SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-03-16  4:59:03
+-- Dump completed on 2026-03-19  7:43:06

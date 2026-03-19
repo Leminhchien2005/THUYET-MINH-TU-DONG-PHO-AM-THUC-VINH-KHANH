@@ -1,0 +1,59 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+
+	<resheader name="resmimetype">
+		<value>text/microsoft-resx</value>
+	</resheader>
+
+	<resheader name="version">
+		<value>2.0</value>
+	</resheader>
+
+	<resheader name="reader">
+		<value>System.Resources.ResXResourceReader</value>
+	</resheader>
+
+	<resheader name="writer">
+		<value>System.Resources.ResXResourceWriter</value>
+	</resheader>
+
+	<!-- SEARCH -->
+	<data name="SearchPlaceholder" xml:space="preserve">
+    <value>Tìm quán ăn...</value>
+  </data>
+
+	<!-- MAIN -->
+	<data name="NearbyTitle" xml:space="preserve">
+    <value>Quán gần bạn</value>
+  </data>
+
+	<data name="Route" xml:space="preserve">
+    <value>Chỉ đường</value>
+  </data>
+
+	<data name="Favorite" xml:space="preserve">
+    <value>Lưu yêu thích</value>
+  </data>
+
+	<data name="DistanceFormat" xml:space="preserve">
+    <value>Khoảng cách {0:F2} km</value>
+  </data>
+
+	<!-- SETTINGS -->
+	<data name="Settings" xml:space="preserve">
+    <value>Cài đặt</value>
+  </data>
+
+	<data name="Volume" xml:space="preserve">
+    <value>Âm lượng đọc</value>
+  </data>
+
+	<data name="Language" xml:space="preserve">
+    <value>Ngôn ngữ</value>
+  </data>
+
+	<data name="Save" xml:space="preserve">
+    <value>Lưu cài đặt</value>
+  </data>
+
+</root>
