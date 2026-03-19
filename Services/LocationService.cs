@@ -8,11 +8,16 @@ namespace FoodStreetGuide.Services
         {
             try
             {
-                var request = new GeolocationRequest(
-                    GeolocationAccuracy.Best,
-                    TimeSpan.FromSeconds(10));
+                var location = await Geolocation.Default.GetLastKnownLocationAsync();
 
-                var location = await Geolocation.Default.GetLocationAsync(request);
+                if (location == null)
+                {
+                    var request = new GeolocationRequest(
+                        GeolocationAccuracy.Medium,
+                        TimeSpan.FromSeconds(10));
+
+                    location = await Geolocation.Default.GetLocationAsync(request);
+                }
 
                 return location;
             }

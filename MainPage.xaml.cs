@@ -417,13 +417,12 @@ public partial class MainPage : ContentPage
         }
     }
 
-    void FavoriteButton_Click(object sender, EventArgs e)
+    void PlayButton_Click(object sender, EventArgs e)
     {
         if (_selectedPoi == null)
             return;
 
-        // Xử lý lưu yêu thích ở đây
-        DisplayAlert("Thông báo", $"Đã lưu '{_selectedPoi.Name}' vào danh sách yêu thích.", "OK");
+        DisplayAlert("Thông báo", $"Đang phát thông tin cho '{_selectedPoi.Name}'.", "OK");
     }
 
     // SEARCH

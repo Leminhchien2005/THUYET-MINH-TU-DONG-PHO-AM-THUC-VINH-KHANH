@@ -157,8 +157,8 @@
                                 TextColor="White"/>
 
                             <Button
-                                Text="Lưu yêu thích"
-                                Clicked="FavoriteButton_Click"
+                                Text="📢 Phát"
+                                Clicked="PlayButton_Click"
                                 BackgroundColor="#EEEEEE"
                                 TextColor="Black"/>
 
