@@ -291,7 +291,6 @@ public partial class MainPage : ContentPage
             )
         );
 
-        // hiện detail
         NearbyPoiList.IsVisible = false;
         AllPoiList.IsVisible = false;
         NearbyTitleLabel.IsVisible = false;
