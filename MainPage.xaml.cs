@@ -135,7 +135,7 @@ public partial class MainPage : ContentPage
 
             _poiList = sqliteList;
 
-            PoiList.ItemsSource = _poiList;
+            RefreshLists(SearchEntry?.Text);
 
             LoadMapPins();
         }
@@ -161,7 +161,7 @@ public partial class MainPage : ContentPage
         if (_poiList == null)
             _poiList = new List<Poi>();
 
-        PoiList.ItemsSource = _poiList;
+        RefreshLists(SearchEntry?.Text);
 
         Debug.WriteLine("POI COUNT: " + _poiList.Count);
     }
@@ -232,7 +232,7 @@ public partial class MainPage : ContentPage
             .OrderBy(p => p.DistanceKm)
             .ToList();
 
-        PoiList.ItemsSource = _poiList;
+        RefreshLists(SearchEntry?.Text);
     }
 
     // CLICK QUÁN → ZOOM MAP
@@ -261,8 +261,12 @@ public partial class MainPage : ContentPage
         );
 
         // hiện detail
-        PoiList.IsVisible = false;
+        NearbyPoiList.IsVisible = false;
+        AllPoiList.IsVisible = false;
+        NearbyTitleLabel.IsVisible = false;
+        AllTitleLabel.IsVisible = false;
         DetailPanel.IsVisible = true;
+        TopCloseButton.IsVisible = true;
 
         TitleLabel.Text = poi.Name ?? "Quán gần bạn";
 
@@ -272,7 +276,6 @@ public partial class MainPage : ContentPage
         if (!string.IsNullOrEmpty(poi.ImageUrl))
             DetailImage.Source = poi.ImageUrl;
 
-        // mở panel
         BottomPanel.TranslateTo(0, 0, 200);
     }
 
@@ -285,9 +288,14 @@ public partial class MainPage : ContentPage
         }
 
         _selectedPoi = null;
-        PoiList.SelectedItem = null;
+        NearbyPoiList.SelectedItem = null;
+        AllPoiList.SelectedItem = null;
         DetailPanel.IsVisible = false;
-        PoiList.IsVisible = true;
+        TopCloseButton.IsVisible = false;
+        NearbyPoiList.IsVisible = true;
+        AllPoiList.IsVisible = true;
+        NearbyTitleLabel.IsVisible = true;
+        AllTitleLabel.IsVisible = true;
         TitleLabel.Text = "Quán gần bạn";
         MyMap.MapElements.Clear();
     }
@@ -463,9 +471,16 @@ public partial class MainPage : ContentPage
 
         try
         {
+            // Lấy danh sách ngôn ngữ văn bản thành giọng nói (TTS) trên máy
+            var locales = await TextToSpeech.Default.GetLocalesAsync();
+
+            // Tìm Tiếng Việt (bạn có thể thay "vi" bằng "en" nếu muốn tiếng Anh)
+            var viLocale = locales.FirstOrDefault(l => l.Language.ToLower() == "vi" || l.Language.ToLower() == "vie" || l.Country == "VN");
+
             await TextToSpeech.Default.SpeakAsync(textToRead, new SpeechOptions 
             {
-                Volume = 1.0f
+                Volume = 1.0f,
+                Locale = viLocale // Truyền ngôn ngữ vào đây
             }, cancelToken: _speechCts.Token);
         }
         catch (OperationCanceledException)
@@ -492,14 +507,24 @@ public partial class MainPage : ContentPage
     // SEARCH
     void SearchBar_TextChanged(object sender, TextChangedEventArgs e)
     {
-        string keyword = e.NewTextValue?.ToLower() ?? "";
+        RefreshLists(e.NewTextValue);
+    }
 
-        var result = _poiList
-            .Where(p => (p.Name ?? "").ToLower().Contains(keyword))
-            .ToList();
+    private void RefreshLists(string? keyword)
+    {
+        IEnumerable<Poi> query = _poiList;
 
-        PoiList.ItemsSource = null;
-        PoiList.ItemsSource = result;
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var lowerKeyword = keyword.ToLower();
+            query = query.Where(p => (p.Name ?? "").ToLower().Contains(lowerKeyword));
+        }
+
+        var allItems = query.ToList();
+        var nearbyItems = allItems.Where(p => p.DistanceKm <= 5).ToList();
+
+        NearbyPoiList.ItemsSource = nearbyItems;
+        AllPoiList.ItemsSource = allItems;
     }
 
     // DRAG PANEL
