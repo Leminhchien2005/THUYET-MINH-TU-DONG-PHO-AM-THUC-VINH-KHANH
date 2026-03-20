@@ -24,6 +24,10 @@ public partial class MainPage : ContentPage
     Poi? _selectedPoi;
     CancellationTokenSource? _speechCts;
 
+    // 🔥 NEW: AUTO SPEAK
+    private HashSet<int> _spokenPoiIds = new();
+    const double TRIGGER_DISTANCE_KM = 0.1; // 100m
+
     public MainPage()
     {
         InitializeComponent();
@@ -36,7 +40,6 @@ public partial class MainPage : ContentPage
         double targetY = this.Height * 0.8;
         BottomPanel.TranslateTo(0, targetY, 200);
     }
-
 
     private void ZoomIn_Clicked(object sender, EventArgs e)
     {
@@ -57,6 +60,7 @@ public partial class MainPage : ContentPage
             MyMap.MoveToRegion(MapSpan.FromCenterAndRadius(center, Distance.FromKilometers(radius.Kilometers * 2.0)));
         }
     }
+
     protected override async void OnAppearing()
     {
         base.OnAppearing();
@@ -65,7 +69,6 @@ public partial class MainPage : ContentPage
 
         await _database.Init();
 
-        // Nếu có internet → cập nhật dữ liệu từ API
         if (Connectivity.Current.NetworkAccess == NetworkAccess.Internet)
         {
             _ = Task.Run(async () =>
@@ -74,13 +77,9 @@ public partial class MainPage : ContentPage
             });
         }
 
-        // Sau đó load dữ liệu từ SQLite
         await LoadDataAsync();
-
-        // Hiện pin lên map
         LoadMapPins();
 
-        // Xin quyền vị trí
         var status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
 
         if (status != PermissionStatus.Granted)
@@ -108,6 +107,22 @@ public partial class MainPage : ContentPage
             _ = CheckLocationAsync();
             return true;
         });
+    }
+
+    // 🔥 NEW: TEXT TO SPEECH HELPER
+    async Task SpeakAsync(string text)
+    {
+        try
+        {
+            await TextToSpeech.Default.SpeakAsync(text, new SpeechOptions
+            {
+                Volume = 1.0f
+            });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine("TTS ERROR: " + ex.Message);
+        }
     }
 
     // LẤY DỮ LIỆU API → SQLITE
@@ -210,7 +225,6 @@ public partial class MainPage : ContentPage
                 DistanceUnits.Kilometers
             ) * 1000;
 
-            // chỉ cập nhật khi di chuyển > 2m
             if (moveDistance < 2)
                 return;
         }
@@ -226,6 +240,24 @@ public partial class MainPage : ContentPage
                 location.Longitude,
                 poi.Latitude,
                 poi.Longitude);
+
+            // 🔥 NEW: AUTO SPEAK
+            if (poi.DistanceKm <= TRIGGER_DISTANCE_KM && !_spokenPoiIds.Contains(poi.Id))
+            {
+                _spokenPoiIds.Add(poi.Id);
+
+                string text = !string.IsNullOrWhiteSpace(poi.Description)
+                    ? poi.Description
+                    : poi.Name;
+
+                _ = SpeakAsync(text);
+            }
+
+            // 🔥 NEW: reset nếu đi xa
+            if (poi.DistanceKm > TRIGGER_DISTANCE_KM)
+            {
+                _spokenPoiIds.Remove(poi.Id);
+            }
         }
 
         _poiList = _poiList
@@ -252,7 +284,6 @@ public partial class MainPage : ContentPage
 
         var location = new Location(poi.Latitude, poi.Longitude);
 
-        // zoom tới quán
         MyMap.MoveToRegion(
             MapSpan.FromCenterAndRadius(
                 location,
@@ -366,7 +397,6 @@ public partial class MainPage : ContentPage
         return JsonSerializer.Deserialize<List<Location>>(route.PointsJson);
     }
 
-
     async void RouteButton_Click(object sender, EventArgs e)
     {
         if (_selectedPoi == null || _lastLocation == null)
@@ -383,7 +413,6 @@ public partial class MainPage : ContentPage
 
             if (Connectivity.Current.NetworkAccess == NetworkAccess.Internet)
             {
-                // ONLINE
                 points = await GetRouteAsync(start, end);
 
                 if (points != null && points.Count > 0)
@@ -393,7 +422,6 @@ public partial class MainPage : ContentPage
             }
             else
             {
-                // OFFLINE
                 points = await LoadRouteAsync(start, end);
 
                 if (points == null || points.Count == 0)
@@ -403,12 +431,12 @@ public partial class MainPage : ContentPage
                 }
             }
 
-
             if (points == null || points.Count == 0)
             {
                 await DisplayAlert("Lỗi", "Không lấy được đường đi", "OK");
                 return;
             }
+
             var polyline = new Polyline
             {
                 StrokeColor = Colors.Blue,
@@ -453,16 +481,15 @@ public partial class MainPage : ContentPage
         if (_selectedPoi == null)
             return;
 
-        // Nếu đang phát thì yêu cầu dừng lại
+        // Nếu đang phát thì dừng
         if (_speechCts != null && !_speechCts.IsCancellationRequested)
         {
             _speechCts.Cancel();
-            // Việc đổi text và dispose sẽ do khối finally của luồng đang phát đảm nhận
             return;
         }
 
-        string textToRead = !string.IsNullOrWhiteSpace(_selectedPoi.Description) 
-            ? _selectedPoi.Description 
+        string textToRead = !string.IsNullOrWhiteSpace(_selectedPoi.Description)
+            ? _selectedPoi.Description
             : (!string.IsNullOrWhiteSpace(_selectedPoi.Name) ? _selectedPoi.Name : "Không có thông tin");
 
         // Bắt đầu phát mới
@@ -485,7 +512,7 @@ public partial class MainPage : ContentPage
         }
         catch (OperationCanceledException)
         {
-            // Bị hủy phát thành công
+            // bị dừng
         }
         catch (Exception ex)
         {
@@ -493,18 +520,16 @@ public partial class MainPage : ContentPage
         }
         finally
         {
-            // Dọn dẹp
             if (_speechCts != null)
             {
                 _speechCts.Dispose();
                 _speechCts = null;
             }
-            // Khôi phục chữ "Phát"
+
             PlayButton.Text = "📢 Phát";
         }
     }
 
-    // SEARCH
     void SearchBar_TextChanged(object sender, TextChangedEventArgs e)
     {
         RefreshLists(e.NewTextValue);
@@ -527,7 +552,6 @@ public partial class MainPage : ContentPage
         AllPoiList.ItemsSource = allItems;
     }
 
-    // DRAG PANEL
     async void OnPanelPan(object sender, PanUpdatedEventArgs e)
     {
         double full = 0;
@@ -541,7 +565,6 @@ public partial class MainPage : ContentPage
                 break;
 
             case GestureStatus.Running:
-
                 double newY = panelStart + e.TotalY;
 
                 if (newY < full)
@@ -551,17 +574,14 @@ public partial class MainPage : ContentPage
                     newY = closed;
 
                 BottomPanel.TranslationY = newY;
-
                 break;
 
             case GestureStatus.Completed:
             case GestureStatus.Canceled:
-
                 if (BottomPanel.TranslationY < closed / 2)
                     await BottomPanel.TranslateTo(0, full, 250, Easing.CubicOut);
                 else
                     await BottomPanel.TranslateTo(0, closed, 250, Easing.CubicOut);
-
                 break;
         }
     }
@@ -570,5 +590,4 @@ public partial class MainPage : ContentPage
     {
         await Shell.Current.GoToAsync(nameof(SettingsPage));
     }
-
 }
