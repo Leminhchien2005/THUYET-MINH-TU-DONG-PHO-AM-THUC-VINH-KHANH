@@ -291,6 +291,7 @@ public partial class MainPage : ContentPage
             )
         );
 
+
         NearbyPoiList.IsVisible = false;
         AllPoiList.IsVisible = false;
         NearbyTitleLabel.IsVisible = false;
@@ -503,7 +504,7 @@ public partial class MainPage : ContentPage
             // Tìm Tiếng Việt (bạn có thể thay "vi" bằng "en" nếu muốn tiếng Anh)
             var viLocale = locales.FirstOrDefault(l => l.Language.ToLower() == "vi" || l.Language.ToLower() == "vie" || l.Country == "VN");
 
-            await TextToSpeech.Default.SpeakAsync(textToRead, new SpeechOptions 
+            await TextToSpeech.Default.SpeakAsync(textToRead, new SpeechOptions
             {
                 Volume = 1.0f,
                 Locale = viLocale // Truyền ngôn ngữ vào đây
