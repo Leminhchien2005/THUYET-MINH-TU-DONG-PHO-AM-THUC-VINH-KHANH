@@ -1,0 +1,132 @@
+﻿@model FoodStreetWeb.Models.Poi
+
+@{
+    ViewData["Title"] = "Sửa quán ăn";
+}
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<h2>Sửa quán ăn</h2>
+
+<form asp-action="Edit" method="post">
+
+    <input type="hidden" asp-for="Id" />
+
+    <div class="form-group">
+        <label>Tên quán</label>
+        <input asp-for="Name" class="form-control" />
+    </div>
+
+    <br>
+
+    <div class="form-group">
+
+        <label>Chọn vị trí trên bản đồ</label>
+
+        <div id="map" style="height:400px;border:1px solid #ccc"></div>
+
+        <small>Click vào bản đồ để chọn lại vị trí</small>
+
+    </div>
+
+    <input asp-for="Latitude" id="Latitude" type="hidden" />
+    <input asp-for="Longitude" id="Longitude" type="hidden" />
+
+    <br>
+
+    <div class="form-group">
+        <label>Bán kính (m)</label>
+        <input asp-for="Radius" id="Radius" class="form-control" />
+    </div>
+
+    <br>
+
+    <div class="form-group">
+        <label>Mô tả</label>
+        <input asp-for="Description" class="form-control" />
+    </div>
+
+    <br>
+
+    <div class="form-group">
+        <label>Link ảnh</label>
+        <input asp-for="ImageUrl" class="form-control" />
+    </div>
+
+    <br>
+
+    <button type="submit" class="btn btn-primary">
+        Cập nhật
+    </button>
+
+</form>
+
+<p>
+    <a asp-action="Index">Quay lại danh sách</a>
+</p>
+
+@section Scripts {
+
+    <script>
+
+        var lat = @Model.Latitude;
+        var lng = @Model.Longitude;
+
+        var map = L.map('map').setView([lat,lng],15);
+
+        L.tileLayer(
+        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {
+        attribution:'Map data'
+        }).addTo(map);
+
+        var marker = L.marker([lat,lng]).addTo(map);
+
+        var circle;
+
+        drawRadius(lat,lng);
+
+        map.on('click',function(e){
+
+        lat = e.latlng.lat;
+        lng = e.latlng.lng;
+
+        marker.setLatLng([lat,lng]);
+
+        document.getElementById("Latitude").value = lat;
+        document.getElementById("Longitude").value = lng;
+
+        drawRadius(lat,lng);
+
+        });
+
+        function drawRadius(lat,lng){
+
+        var radius = document.getElementById("Radius").value;
+
+        if(circle){
+        map.removeLayer(circle);
+        }
+
+        if(radius){
+
+        circle = L.circle([lat,lng],{
+        radius:radius,
+        color:'blue',
+        fillOpacity:0.2
+        }).addTo(map);
+
+        }
+
+        }
+
+        document.getElementById("Radius").addEventListener("input",function(){
+
+        drawRadius(lat,lng);
+
+        });
+
+    </script>
+
+}

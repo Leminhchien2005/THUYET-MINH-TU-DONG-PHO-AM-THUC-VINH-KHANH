@@ -1,0 +1,110 @@
+﻿@model List<FoodStreetWeb.Models.UserViewModel>
+
+<h2>Quản lý tài khoản</h2>
+
+<a class="btn btn-primary mb-3" asp-action="CreateUser">
+    Thêm tài khoản
+</a>
+
+<!-- Thanh tìm kiếm -->
+<form method="get" class="row mb-3">
+
+    <div class="col-md-3">
+        <input type="text"
+               name="email"
+               class="form-control"
+               placeholder="Tìm theo email"
+               value="@Context.Request.Query["email"]" />
+    </div>
+
+    <div class="col-md-3">
+        <select name="role" class="form-control">
+            <option value="">-- Role --</option>
+            <option value="Admin">Admin</option>
+            <option value="RestaurantOwner">RestaurantOwner</option>
+        </select>
+    </div>
+
+    <div class="col-md-3">
+        <select name="status" class="form-control">
+            <option value="">-- Trạng thái --</option>
+            <option value="Active">Hoạt động</option>
+            <option value="Locked">Đã khóa</option>
+        </select>
+    </div>
+
+    <div class="col-md-3">
+        <button type="submit" class="btn btn-primary">
+            Tìm
+        </button>
+
+        <a asp-action="ManageUsers" class="btn btn-secondary">
+            Reset
+        </a>
+    </div>
+
+</form>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Trạng thái</th>
+            <th>Chức năng</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        @foreach (var user in Model)
+        {
+            <tr>
+
+                <td>@user.Email</td>
+
+                <td>@user.Role</td>
+
+                <td>
+                    @if (user.IsLocked)
+                    {
+                        <span style="color:red">Đã khóa</span>
+                    }
+                    else
+                    {
+                        <span style="color:green">Hoạt động</span>
+                    }
+                </td>
+
+                <td>
+
+                    <!-- Chi tiết -->
+                    <a class="btn btn-info"
+                           asp-action="UserDetails"
+                           asp-route-id="@user.Id">
+                        Chi tiết
+                    </a>
+
+                    <!-- Khóa / Mở khóa -->
+                    @if (user.IsLocked)
+                    {
+                        <a class="btn btn-success"
+                               asp-action="UnlockUser"
+                               asp-route-id="@user.Id">
+                            Mở khóa
+                        </a>
+                    }
+                    else
+                    {
+                        <a class="btn btn-danger"
+                               asp-action="LockUser"
+                               asp-route-id="@user.Id">
+                            Khóa
+                        </a>
+                    }
+
+                </td>
+
+            </tr>
+        }
+    </tbody>
+</table>
