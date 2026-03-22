@@ -1,5 +1,6 @@
 using FoodStreetGuide.Models;
 using FoodStreetGuide.Services;
+using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Maps;
 using Microsoft.Maui.Networking;
@@ -28,6 +29,8 @@ public partial class MainPage : ContentPage
     private HashSet<int> _spokenPoiIds = new();
     const double TRIGGER_DISTANCE_KM = 0.1; // 100m
 
+    bool _suppressSearchUpdate;
+
     public MainPage()
     {
         InitializeComponent();
@@ -37,8 +40,14 @@ public partial class MainPage : ContentPage
     private void MyMap_MapClicked(object sender, MapClickedEventArgs e)
     {
         MyMap.MapElements.Clear();
+        DismissKeyboard();
         double targetY = this.Height * 0.8;
         BottomPanel.TranslateTo(0, targetY, 200);
+        SearchEntry.Text = string.Empty;
+        SearchPanel.IsVisible = false;
+        SearchResultsList.ItemsSource = null;
+        RouteButton.IsVisible = true;
+        PlayButton.IsVisible = true;
     }
 
     private void ZoomIn_Clicked(object sender, EventArgs e)
@@ -278,6 +287,21 @@ public partial class MainPage : ContentPage
         ShowPoiDetails(poi);
     }
 
+    void SearchResults_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        var poi = e.CurrentSelection.FirstOrDefault() as Poi;
+
+        if (poi == null)
+            return;
+
+        DismissKeyboard();
+        SearchPanel.IsVisible = false;
+        SearchEntry.Text = string.Empty;
+        ((CollectionView)sender).SelectedItem = null;
+
+        ShowPoiDetails(poi);
+    }
+
     private void ShowPoiDetails(Poi poi)
     {
         _selectedPoi = poi;
@@ -303,6 +327,8 @@ public partial class MainPage : ContentPage
 
         DetailDescription.Text = poi.Description;
         DetailDistance.Text = $"Khoảng cách {poi.DistanceKm:0.00} km";
+        RouteInfoLabel.Text = string.Empty;
+        RouteInfoPanel.IsVisible = false;
 
         if (!string.IsNullOrEmpty(poi.ImageUrl))
             DetailImage.Source = poi.ImageUrl;
@@ -315,9 +341,9 @@ public partial class MainPage : ContentPage
         if (_speechCts != null && !_speechCts.IsCancellationRequested)
         {
             _speechCts.Cancel();
-            // Khối finally của TextToSpeech sẽ làm nhiệm vụ dọn dẹp
         }
-
+        double targetY = this.Height * 0.8;
+        BottomPanel.TranslateTo(0, targetY, 200);
         _selectedPoi = null;
         NearbyPoiList.SelectedItem = null;
         AllPoiList.SelectedItem = null;
@@ -328,10 +354,14 @@ public partial class MainPage : ContentPage
         NearbyTitleLabel.IsVisible = true;
         AllTitleLabel.IsVisible = true;
         TitleLabel.Text = "Quán gần bạn";
+        RouteInfoLabel.Text = string.Empty;
+        RouteInfoPanel.IsVisible = false;
         MyMap.MapElements.Clear();
+        RouteButton.IsVisible = true;
+        PlayButton.IsVisible = true;
     }
 
-    async Task<List<Location>> GetRouteAsync(Location start, Location end)
+    async Task<(List<Location> Points, double DurationSeconds)> GetRouteAsync(Location start, Location end)
     {
         try
         {
@@ -347,10 +377,11 @@ public partial class MainPage : ContentPage
             var routes = doc.RootElement.GetProperty("routes");
 
             if (routes.GetArrayLength() == 0)
-                return new List<Location>();
+                return (new List<Location>(), 0);
 
-            var coordinates =
-            routes[0].GetProperty("geometry").GetProperty("coordinates");
+            var route = routes[0];
+            var coordinates = route.GetProperty("geometry").GetProperty("coordinates");
+            var duration = route.GetProperty("duration").GetDouble();
 
             var points = new List<Location>();
 
@@ -361,11 +392,11 @@ public partial class MainPage : ContentPage
                     c[0].GetDouble()));
             }
 
-            return points;
+            return (points, duration);
         }
         catch
         {
-            return new List<Location>();
+            return (new List<Location>(), 0);
         }
     }
 
@@ -406,14 +437,20 @@ public partial class MainPage : ContentPage
         {
             MyMap.MapElements.Clear();
 
+            RouteButton.IsVisible = false;
+            PlayButton.IsVisible = false;
+
             var start = _lastLocation;
             var end = new Location(_selectedPoi.Latitude, _selectedPoi.Longitude);
 
             List<Location> points;
+            double durationSeconds = 0;
 
             if (Connectivity.Current.NetworkAccess == NetworkAccess.Internet)
             {
-                points = await GetRouteAsync(start, end);
+                var routeResult = await GetRouteAsync(start, end);
+                points = routeResult.Points;
+                durationSeconds = routeResult.DurationSeconds;
 
                 if (points != null && points.Count > 0)
                 {
@@ -465,6 +502,18 @@ public partial class MainPage : ContentPage
                 if (lonDegrees == 0) lonDegrees = 0.01;
 
                 MyMap.MoveToRegion(new MapSpan(new Location(centerLat, centerLon), latDegrees, lonDegrees));
+            }
+
+            if (durationSeconds > 0)
+            {
+                var duration = TimeSpan.FromSeconds(durationSeconds);
+                RouteInfoLabel.Text = $"Ô tô • {duration.Hours}h {duration.Minutes}m";
+                RouteInfoPanel.IsVisible = true;
+            }
+            else
+            {
+                RouteInfoLabel.Text = "Ô tô";
+                RouteInfoPanel.IsVisible = false;
             }
 
             double targetY = this.Height * 0.8;
@@ -533,6 +582,29 @@ public partial class MainPage : ContentPage
     void SearchBar_TextChanged(object sender, TextChangedEventArgs e)
     {
         RefreshLists(e.NewTextValue);
+        UpdateSearchPanel(e.NewTextValue);
+    }
+
+    void DismissKeyboard()
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            if (SearchEntry.IsFocused)
+            {
+                SearchEntry.Unfocus();
+            }
+        });
+    }
+
+    void MoveToUserLocation()
+    {
+        if (_lastLocation == null)
+            return;
+
+        MyMap.MoveToRegion(
+            MapSpan.FromCenterAndRadius(
+                new Location(_lastLocation.Latitude, _lastLocation.Longitude),
+                Distance.FromKilometers(1)));
     }
 
     private void RefreshLists(string? keyword)
@@ -550,6 +622,32 @@ public partial class MainPage : ContentPage
 
         NearbyPoiList.ItemsSource = nearbyItems;
         AllPoiList.ItemsSource = allItems;
+    }
+
+    private void UpdateSearchPanel(string? keyword)
+    {
+        if (string.IsNullOrWhiteSpace(keyword))
+        {
+            DismissKeyboard();
+            SearchPanel.IsVisible = false;
+            SearchResultsList.ItemsSource = null;
+            double closed = this.Height - 350;
+            _ = BottomPanel.TranslateTo(0, closed, 200);
+            return;
+        }
+
+        var matches = _poiList
+            .Where(p => (p.Name ?? "").Contains(keyword, StringComparison.OrdinalIgnoreCase))
+            .Take(10)
+            .ToList();
+
+        SearchResultsList.ItemsSource = matches;
+        SearchPanel.IsVisible = matches.Count > 0;
+        if (SearchPanel.IsVisible)
+        {
+            double targetY = this.Height * 0.8;
+            _ = BottomPanel.TranslateTo(0, targetY, 200);
+        }
     }
 
     async void OnPanelPan(object sender, PanUpdatedEventArgs e)
