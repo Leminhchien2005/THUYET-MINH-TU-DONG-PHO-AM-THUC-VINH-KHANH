@@ -30,6 +30,7 @@ public partial class MainPage : ContentPage
     const double TRIGGER_DISTANCE_KM = 0.1; // 100m
 
     bool _suppressSearchUpdate;
+    bool _isInitialized;
 
     public MainPage()
     {
@@ -74,6 +75,11 @@ public partial class MainPage : ContentPage
     {
         base.OnAppearing();
 
+        if (_isInitialized)
+        {
+            return;
+        }
+
         BottomPanel.TranslationY = 280;
 
         await _database.Init();
@@ -116,6 +122,8 @@ public partial class MainPage : ContentPage
             _ = CheckLocationAsync();
             return true;
         });
+
+        _isInitialized = true;
     }
 
     // 🔥 NEW: TEXT TO SPEECH HELPER
@@ -596,6 +604,25 @@ public partial class MainPage : ContentPage
         });
     }
 
+    void HomeTab_Tapped(object sender, TappedEventArgs e)
+    {
+        SearchEntry.Text = string.Empty;
+        SearchPanel.IsVisible = false;
+        SearchResultsList.ItemsSource = null;
+
+        if (_selectedPoi != null)
+        {
+            ClearSelection_Click(this, EventArgs.Empty);
+        }
+
+        MoveToUserLocation();
+    }
+
+    async void QrTab_Tapped(object sender, TappedEventArgs e)
+    {
+        await DisplayAlert("QR", "Chức năng quét QR đang được phát triển.", "OK");
+    }
+
     void MoveToUserLocation()
     {
         if (_lastLocation == null)
@@ -684,7 +711,7 @@ public partial class MainPage : ContentPage
         }
     }
 
-    private async void OnSettingsClicked(object sender, EventArgs e)
+    private async void OnSettingsClicked(object sender, TappedEventArgs e)
     {
         await Shell.Current.GoToAsync(nameof(SettingsPage));
     }

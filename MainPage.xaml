@@ -401,29 +401,42 @@
 
         </Border>
 
-        <!-- NÚT CÀI ĐẶT NỔI -->
-        <Button
-            Text="⚙️"
-            FontSize="20"
-            WidthRequest="50"
-            HeightRequest="50"
-            CornerRadius="25"
+        <!-- BOTTOM TAB BAR -->
+        <Border
+            x:Name="BottomTabBar"
             BackgroundColor="White"
-            TextColor="Black"
-            HorizontalOptions="End"
-            VerticalOptions="Start"
-            Margin="0,100,15,0"
-            ZIndex="9"
-            Clicked="OnSettingsClicked">
+            StrokeThickness="0"
+            VerticalOptions="End"
+            Margin="15,0,15,15"
+            Padding="10,8"
+            ZIndex="20">
 
-            <Button.Shadow>
-                <Shadow Brush="Black"
-                        Opacity="0.3"
-                        Radius="10"
-                        Offset="2,2"/>
-            </Button.Shadow>
+            <Grid ColumnDefinitions="*,*,*">
+                <VerticalStackLayout Grid.Column="0" HorizontalOptions="Center" Spacing="2">
+                    <Label Text="🏠" FontSize="20" HorizontalOptions="Center" />
+                    <Label Text="Trang chủ" FontSize="12" TextColor="Black" HorizontalOptions="Center" />
+                    <VerticalStackLayout.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="HomeTab_Tapped" />
+                    </VerticalStackLayout.GestureRecognizers>
+                </VerticalStackLayout>
 
-        </Button>
+                <VerticalStackLayout Grid.Column="1" HorizontalOptions="Center" Spacing="2">
+                    <Label Text="📷" FontSize="20" HorizontalOptions="Center" />
+                    <Label Text="Quét QR" FontSize="12" TextColor="Black" HorizontalOptions="Center" />
+                    <VerticalStackLayout.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="QrTab_Tapped" />
+                    </VerticalStackLayout.GestureRecognizers>
+                </VerticalStackLayout>
+
+                <VerticalStackLayout Grid.Column="2" HorizontalOptions="Center" Spacing="2">
+                    <Label Text="⚙️" FontSize="20" HorizontalOptions="Center" />
+                    <Label Text="Cài đặt" FontSize="12" TextColor="Black" HorizontalOptions="Center" />
+                    <VerticalStackLayout.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnSettingsClicked" />
+                    </VerticalStackLayout.GestureRecognizers>
+                </VerticalStackLayout>
+            </Grid>
+        </Border>
 
     </Grid>
 
