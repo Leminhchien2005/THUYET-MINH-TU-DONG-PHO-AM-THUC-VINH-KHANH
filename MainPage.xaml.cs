@@ -42,8 +42,7 @@ public partial class MainPage : ContentPage
     {
         MyMap.MapElements.Clear();
         DismissKeyboard();
-        double targetY = this.Height * 0.8;
-        BottomPanel.TranslateTo(0, targetY, 200);
+        BottomPanel.TranslationY = 420;
         SearchEntry.Text = string.Empty;
         SearchPanel.IsVisible = false;
         SearchResultsList.ItemsSource = null;
@@ -323,6 +322,7 @@ public partial class MainPage : ContentPage
             )
         );
 
+        BottomPanel.TranslationY = 280;
 
         NearbyPoiList.IsVisible = false;
         AllPoiList.IsVisible = false;
@@ -330,6 +330,7 @@ public partial class MainPage : ContentPage
         AllTitleLabel.IsVisible = false;
         DetailPanel.IsVisible = true;
         TopCloseButton.IsVisible = true;
+        BottomTabBar.IsVisible = false;
 
         TitleLabel.Text = poi.Name ?? "Quán gần bạn";
 
@@ -341,7 +342,6 @@ public partial class MainPage : ContentPage
         if (!string.IsNullOrEmpty(poi.ImageUrl))
             DetailImage.Source = poi.ImageUrl;
 
-        BottomPanel.TranslateTo(0, 0, 200);
     }
 
     void ClearSelection_Click(object sender, EventArgs e)
@@ -350,8 +350,9 @@ public partial class MainPage : ContentPage
         {
             _speechCts.Cancel();
         }
-        double targetY = this.Height * 0.8;
-        BottomPanel.TranslateTo(0, targetY, 200);
+
+        BottomPanel.TranslationY = 420;
+
         _selectedPoi = null;
         NearbyPoiList.SelectedItem = null;
         AllPoiList.SelectedItem = null;
@@ -367,6 +368,7 @@ public partial class MainPage : ContentPage
         MyMap.MapElements.Clear();
         RouteButton.IsVisible = true;
         PlayButton.IsVisible = true;
+        BottomTabBar.IsVisible = true;
     }
 
     async Task<(List<Location> Points, double DurationSeconds)> GetRouteAsync(Location start, Location end)
