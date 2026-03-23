@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="../FoodStreetWeb/FoodStreetWeb.csproj" />
   <Project Path="FoodStreetGuide.csproj">
     <Deploy Solution="Debug|*" />
   </Project>

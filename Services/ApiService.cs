@@ -13,7 +13,7 @@ public class ApiService
         _httpClient = new HttpClient
         {
             //BaseAddress = new Uri("http://10.0.2.2:5057"),// may ao
-            BaseAddress = new Uri("http://192.168.31.164:5057"),// may that  
+            BaseAddress = new Uri("http://192.168.1.6:5057"),// may that  
             Timeout = TimeSpan.FromSeconds(3)
         };
     }

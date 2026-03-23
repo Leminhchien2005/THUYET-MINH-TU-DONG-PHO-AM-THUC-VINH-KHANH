@@ -619,12 +619,6 @@ public partial class MainPage : ContentPage
 
         MoveToUserLocation();
     }
-
-    async void QrTab_Tapped(object sender, TappedEventArgs e)
-    {
-        await DisplayAlert("QR", "Chức năng quét QR đang được phát triển.", "OK");
-    }
-
     void MoveToUserLocation()
     {
         if (_lastLocation == null)
@@ -716,5 +710,14 @@ public partial class MainPage : ContentPage
     private async void OnSettingsClicked(object sender, TappedEventArgs e)
     {
         await Shell.Current.GoToAsync(nameof(SettingsPage));
+    }
+
+    private async void QrTab_Tapped(object sender, EventArgs e)
+    {
+        var view = sender as View;
+        await view.ScaleTo(0.9, 100);
+        await view.ScaleTo(1, 100);
+
+        await Shell.Current.GoToAsync(nameof(QrScanPage));
     }
 }

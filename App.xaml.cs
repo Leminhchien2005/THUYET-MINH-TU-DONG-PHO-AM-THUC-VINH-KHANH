@@ -19,6 +19,7 @@ namespace FoodStreetGuide
             // 🔥 Load ngôn ngữ đã lưu
             var lang = Preferences.Get("lang", "vi");
             Thread.CurrentThread.CurrentUICulture = new CultureInfo(lang);
+
         }
 
         protected override Window CreateWindow(IActivationState? activationState)

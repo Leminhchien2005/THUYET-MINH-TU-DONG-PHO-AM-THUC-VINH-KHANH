@@ -84,8 +84,6 @@
 
 		<PackageReference Include="sqlite-net-pcl" Version="1.9.172" />
 
-		<PackageReference Include="ZXing.Net.Maui" Version="0.7.4" />
-
 	</ItemGroup>
 
 

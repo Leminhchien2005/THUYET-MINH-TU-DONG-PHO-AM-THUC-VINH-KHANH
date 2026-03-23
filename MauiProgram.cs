@@ -1,6 +1,9 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Camera.MAUI;
+using System.Linq;
+using Microsoft.Extensions.Logging;
 using FoodStreetGuide.Services;
 using Microsoft.Maui.Controls.Maps;
+
 
 namespace FoodStreetGuide
 {
@@ -13,6 +16,7 @@ namespace FoodStreetGuide
             builder
                 .UseMauiApp<App>()
                 .UseMauiMaps()
+                .UseMauiCameraView()
                 .ConfigureFonts(fonts =>
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");

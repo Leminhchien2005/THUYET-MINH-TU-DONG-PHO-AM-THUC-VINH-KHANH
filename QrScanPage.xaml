@@ -1,0 +1,58 @@
+<ContentPage
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:camera="clr-namespace:Camera.MAUI;assembly=Camera.MAUI"
+    x:Class="FoodStreetGuide.QrScanPage">
+
+    <Grid>
+
+        <!-- CAMERA -->
+        <camera:CameraView
+            x:Name="cameraView"
+            HorizontalOptions="FillAndExpand"
+            VerticalOptions="FillAndExpand" />
+
+        <!-- OVERLAY -->
+        <Grid>
+            <!-- Top -->
+            <BoxView Color="#80000000" HeightRequest="200" VerticalOptions="Start"/>
+
+            <!-- Bottom -->
+            <BoxView Color="#80000000" HeightRequest="200" VerticalOptions="End"/>
+
+            <!-- Left -->
+            <BoxView Color="#80000000" WidthRequest="50" HorizontalOptions="Start"/>
+
+            <!-- Right -->
+            <BoxView Color="#80000000" WidthRequest="50" HorizontalOptions="End"/>
+
+            <!-- KHUNG SCAN -->
+            <Frame
+                WidthRequest="250"
+                HeightRequest="250"
+                BorderColor="Lime"
+                BackgroundColor="Transparent"
+                CornerRadius="10"
+                HorizontalOptions="Center"
+                VerticalOptions="Center" />
+            
+            <!-- 🔳 SCAN LINE -->
+            <BoxView
+                x:Name="ScanLine"
+                HeightRequest="2"
+                Color="Lime"
+                HorizontalOptions="Fill"
+                VerticalOptions="Center"/>
+
+            <!-- TEXT -->
+            <Label
+                Text="Đưa QR vào khung"
+                TextColor="White"
+                FontSize="16"
+                HorizontalOptions="Center"
+                VerticalOptions="End"
+                Margin="0,0,0,80"/>
+        </Grid>
+
+    </Grid>
+</ContentPage>
