@@ -1,57 +1,43 @@
-<ContentPage
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage 
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:camera="clr-namespace:Camera.MAUI;assembly=Camera.MAUI"
-    x:Class="FoodStreetGuide.QrScanPage">
+    x:Class="FoodStreetGuide.QrScanPage"
+    BackgroundColor="Black">
 
     <Grid>
 
-        <!-- CAMERA -->
-        <camera:CameraView
+        <!-- Camera -->
+        <camera:CameraView 
             x:Name="cameraView"
-            HorizontalOptions="FillAndExpand"
-            VerticalOptions="FillAndExpand" />
+            HorizontalOptions="Fill"
+            VerticalOptions="Fill"
+            />
 
-        <!-- OVERLAY -->
+        <!-- Overlay -->
         <Grid>
-            <!-- Top -->
-            <BoxView Color="#80000000" HeightRequest="200" VerticalOptions="Start"/>
+            <BoxView BackgroundColor="#80000000"/>
 
-            <!-- Bottom -->
-            <BoxView Color="#80000000" HeightRequest="200" VerticalOptions="End"/>
-
-            <!-- Left -->
-            <BoxView Color="#80000000" WidthRequest="50" HorizontalOptions="Start"/>
-
-            <!-- Right -->
-            <BoxView Color="#80000000" WidthRequest="50" HorizontalOptions="End"/>
-
-            <!-- KHUNG SCAN -->
-            <Frame
+            <!-- Khung scan -->
+            <Frame 
                 WidthRequest="250"
                 HeightRequest="250"
-                BorderColor="Lime"
+                BorderColor="White"
                 BackgroundColor="Transparent"
                 CornerRadius="10"
                 HorizontalOptions="Center"
-                VerticalOptions="Center" />
-            
-            <!-- 🔳 SCAN LINE -->
-            <BoxView
-                x:Name="ScanLine"
-                HeightRequest="2"
-                Color="Lime"
-                HorizontalOptions="Fill"
                 VerticalOptions="Center"/>
 
-            <!-- TEXT -->
-            <Label
-                Text="Đưa QR vào khung"
-                TextColor="White"
-                FontSize="16"
+            <!-- Scan line -->
+            <BoxView 
+                x:Name="ScanLine"
+                HeightRequest="2"
+                WidthRequest="250"
+                BackgroundColor="Red"
                 HorizontalOptions="Center"
-                VerticalOptions="End"
-                Margin="0,0,0,80"/>
+                VerticalOptions="Center"/>
+
         </Grid>
 
     </Grid>

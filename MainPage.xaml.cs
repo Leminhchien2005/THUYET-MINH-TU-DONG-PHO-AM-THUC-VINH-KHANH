@@ -79,7 +79,7 @@ public partial class MainPage : ContentPage
             return;
         }
 
-        BottomPanel.TranslationY = 280;
+        BottomPanel.TranslationY = this.Height > 0 ? this.Height - 350 : 280;
 
         await _database.Init();
 
@@ -526,8 +526,8 @@ public partial class MainPage : ContentPage
                 RouteInfoPanel.IsVisible = false;
             }
 
-            double targetY = this.Height * 0.8;
-            await BottomPanel.TranslateTo(0, targetY, 200);
+            double targetY = this.Height > 0 ? this.Height - 350 : 280;
+            await BottomPanel.TranslateTo(0, targetY, 250, Easing.CubicOut);
         }
         catch (Exception ex)
         {
@@ -676,7 +676,8 @@ public partial class MainPage : ContentPage
     async void OnPanelPan(object sender, PanUpdatedEventArgs e)
     {
         double full = 0;
-        double closed = this.Height - 350;
+        double middle = this.Height > 0 ? this.Height - 350 : 280;
+        double closed = this.Height > 0 ? this.Height - 150 : 600;
 
         switch (e.StatusType)
         {
@@ -699,10 +700,25 @@ public partial class MainPage : ContentPage
 
             case GestureStatus.Completed:
             case GestureStatus.Canceled:
-                if (BottomPanel.TranslationY < closed / 2)
-                    await BottomPanel.TranslateTo(0, full, 250, Easing.CubicOut);
-                else
-                    await BottomPanel.TranslateTo(0, closed, 250, Easing.CubicOut);
+                double currentY = BottomPanel.TranslationY;
+
+                // Find the nearest snap point
+                double distFull = Math.Abs(currentY - full);
+                double distMiddle = Math.Abs(currentY - middle);
+                double distClosed = Math.Abs(currentY - closed);
+
+                double targetY = full; // Default to full
+
+                if (distMiddle < distFull && distMiddle < distClosed)
+                {
+                    targetY = middle;
+                }
+                else if (distClosed < distFull && distClosed < distMiddle)
+                {
+                    targetY = closed;
+                }
+
+                await BottomPanel.TranslateTo(0, targetY, 250, Easing.CubicOut);
                 break;
         }
     }
