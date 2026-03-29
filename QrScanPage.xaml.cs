@@ -43,7 +43,7 @@ public partial class QrScanPage : ContentPage
                 if (status == PermissionStatus.Granted)
                 {
                     await cameraView.StartCameraAsync();
-                    await Task.Delay(500);
+                    await Task.Delay(100);
                 }
                 else
                 {
@@ -70,18 +70,32 @@ public partial class QrScanPage : ContentPage
         {
             await cameraView.StopCameraAsync();
 
-            await DisplayAlert("QR Code", result, "OK");
+            string webPrefix = "https://foodstreet.vn/restaurant/";
+            string appPrefix = "foodstreet://restaurant/";
 
-            // 👉 nếu là link thì mở
-            if (Uri.TryCreate(result, UriKind.Absolute, out var uri))
+            if (result.StartsWith(webPrefix, StringComparison.OrdinalIgnoreCase) ||
+                result.StartsWith(appPrefix, StringComparison.OrdinalIgnoreCase))
             {
-                await Launcher.OpenAsync(uri);
+                string restaurantId = result.Replace(webPrefix, "", StringComparison.OrdinalIgnoreCase)
+                                            .Replace(appPrefix, "", StringComparison.OrdinalIgnoreCase)
+                                            .TrimEnd('/');
+
+                await Shell.Current.GoToAsync($"..?poiId={restaurantId}");
+                return;
+            }
+            else
+            {
+                await DisplayAlert("QR Code", result, "OK");
+
+                if (Uri.TryCreate(result, UriKind.Absolute, out var uri))
+                {
+                    await Launcher.OpenAsync(uri);
+                }
             }
 
             isScanning = false;
 
-            // bật lại camera
-            await Task.Delay(1500);
+            await Task.Delay(300);
             await cameraView.StartCameraAsync();
         });
     }

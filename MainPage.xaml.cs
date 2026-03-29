@@ -11,6 +11,7 @@ using System.Threading;
 
 namespace FoodStreetGuide;
 
+[QueryProperty(nameof(PoiIdQuery), "poiId")]
 public partial class MainPage : ContentPage
 {
     private readonly LocationService _locationService = new();
@@ -32,10 +33,72 @@ public partial class MainPage : ContentPage
     bool _suppressSearchUpdate;
     bool _isInitialized;
 
+    private string _pendingPoiId;
+
+    private string _poiIdQuery;
+    public string PoiIdQuery
+    {
+        get => _poiIdQuery;
+        set
+        {
+            _poiIdQuery = value;
+            if (!string.IsNullOrEmpty(value))
+            {
+                var idToFind = value.Trim();
+
+                if (!_isInitialized)
+                {
+                    _pendingPoiId = idToFind;
+                }
+                else
+                {
+                    Dispatcher.DispatchAsync(() =>
+                    {
+                        var poi = _poiList.FirstOrDefault(p => p.Id.ToString() == idToFind);
+                        if (poi != null)
+                        {
+                            ShowPoiDetails(poi);
+                        }
+                    });
+                }
+            }
+        }
+    }
+
+    private void TryShowPendingPoi()
+    {
+        if (!string.IsNullOrEmpty(_pendingPoiId) && _poiList != null)
+        {
+            var poi = _poiList.FirstOrDefault(p => p.Id.ToString() == _pendingPoiId);
+            if (poi != null)
+            {
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    ShowPoiDetails(poi);
+                });
+                _pendingPoiId = null; // Cleared once successful
+            }
+        }
+    }
+
     public MainPage()
     {
         InitializeComponent();
         MyMap.MapClicked += MyMap_MapClicked;
+    }
+
+    public MainPage(string poiId) : this()
+    {
+        // Handle deep link navigation to specific POI
+        Dispatcher.DispatchAsync(async () =>
+        {
+            await LoadDataAsync();
+            var poi = _poiList.FirstOrDefault(p => p.Id.ToString() == poiId);
+            if (poi != null)
+            {
+                ShowPoiDetails(poi);
+            }
+        });
     }
 
     private void MyMap_MapClicked(object sender, MapClickedEventArgs e)
@@ -123,6 +186,8 @@ public partial class MainPage : ContentPage
         });
 
         _isInitialized = true;
+
+        TryShowPendingPoi();
     }
 
     // 🔥 NEW: TEXT TO SPEECH HELPER
@@ -166,9 +231,14 @@ public partial class MainPage : ContentPage
 
             _poiList = sqliteList;
 
-            RefreshLists(SearchEntry?.Text);
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                RefreshLists(SearchEntry?.Text);
 
-            LoadMapPins();
+                LoadMapPins();
+
+                TryShowPendingPoi();
+            });
         }
         catch (HttpRequestException)
         {
