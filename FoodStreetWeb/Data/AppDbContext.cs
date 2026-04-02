@@ -17,5 +17,9 @@ namespace FoodStreetWeb.Data
 
         public DbSet<Food> Foods { get; set; }
 
+        public DbSet<FoodRequest> FoodRequests { get; set; }
+
+        public DbSet<PoiTranslation> PoiTranslations { get; set; }
+        public DbSet<FoodTranslation> FoodTranslations { get; set; }
     }
 }

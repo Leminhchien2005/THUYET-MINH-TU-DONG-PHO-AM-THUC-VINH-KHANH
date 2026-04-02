@@ -61,11 +61,29 @@ namespace FoodStreetGuide.Resources.Strings {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Tất cả quán.
+        /// </summary>
+        public static string AllTitle {
+            get {
+                return ResourceManager.GetString("AllTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Khoảng cách {0:F2} km.
         /// </summary>
         public static string DistanceFormat {
             get {
                 return ResourceManager.GetString("DistanceFormat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Lỗi.
+        /// </summary>
+        public static string Error {
+            get {
+                return ResourceManager.GetString("Error", resourceCulture);
             }
         }
         
@@ -97,6 +115,15 @@ namespace FoodStreetGuide.Resources.Strings {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Không có thông tin.
+        /// </summary>
+        public static string NoInfo {
+            get {
+                return ResourceManager.GetString("NoInfo", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Chỉ đường.
         /// </summary>
         public static string Route {
@@ -115,6 +142,15 @@ namespace FoodStreetGuide.Resources.Strings {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Đã lưu cài đặt.
+        /// </summary>
+        public static string SavedMessage {
+            get {
+                return ResourceManager.GetString("SavedMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Tìm quán ăn....
         /// </summary>
         public static string SearchPlaceholder {
@@ -129,6 +165,15 @@ namespace FoodStreetGuide.Resources.Strings {
         public static string Settings {
             get {
                 return ResourceManager.GetString("Settings", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Không thể phát âm thanh: .
+        /// </summary>
+        public static string TtsError {
+            get {
+                return ResourceManager.GetString("TtsError", resourceCulture);
             }
         }
         

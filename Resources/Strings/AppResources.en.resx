@@ -56,4 +56,24 @@
     <value>Save</value>
   </data>
 
+	<data name="SavedMessage">
+		<value>Settings saved</value>
+	</data>
+
+	<data name="AllTitle">
+		<value>All places</value>
+	</data>
+
+	<data name="NoInfo">
+		<value>No information</value>
+	</data>
+
+	<data name="Error">
+		<value>Error</value>
+	</data>
+
+	<data name="TtsError">
+		<value>Cannot play audio: </value>
+	</data>
+
 </root>

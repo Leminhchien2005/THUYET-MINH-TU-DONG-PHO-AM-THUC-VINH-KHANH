@@ -12,8 +12,8 @@ public class ApiService
         _httpClient = new HttpClient();
         _httpClient = new HttpClient
         {
-            //BaseAddress = new Uri("http://10.0.2.2:5057"),// may ao
-            BaseAddress = new Uri("http://192.168.1.11:5057"),// may that  
+            BaseAddress = new Uri("http://10.0.2.2:5057"),// may ao
+            //BaseAddress = new Uri("http://192.168.1.11:5057"),// may that  
             Timeout = TimeSpan.FromSeconds(3)
         };
     }
@@ -31,5 +31,20 @@ public class ApiService
             {
                 PropertyNameCaseInsensitive = true
             }) ?? new List<Poi>();
+    }
+
+    public async Task<List<ApiPoiDto>> GetPoisWithFoodsAsync()
+    {
+        var response = await _httpClient.GetAsync("api/PoisApi");
+
+        response.EnsureSuccessStatusCode();
+
+        var json = await response.Content.ReadAsStringAsync();
+
+        return JsonSerializer.Deserialize<List<ApiPoiDto>>(json,
+            new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }) ?? new List<ApiPoiDto>();
     }
 }

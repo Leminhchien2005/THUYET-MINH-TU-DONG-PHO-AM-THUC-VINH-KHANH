@@ -4,7 +4,7 @@ namespace FoodStreetGuide.Models
 {
     public class Poi
     {
-        [PrimaryKey, AutoIncrement]
+        [PrimaryKey]
         public int Id { get; set; }
 
         public string? Name { get; set; }

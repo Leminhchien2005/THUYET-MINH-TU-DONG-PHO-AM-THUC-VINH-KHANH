@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace FoodStreetWeb.Models
 {
@@ -46,6 +47,10 @@ namespace FoodStreetWeb.Models
         // không lưu DB
         [NotMapped]
         public double DistanceKm { get; set; }
+
+        public ICollection<Food> Foods { get; set; } = new List<Food>();
+        public ICollection<PoiTranslation> Translations { get; set; } = new List<PoiTranslation>();
+
 
     }
 }

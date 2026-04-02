@@ -1,4 +1,4 @@
-﻿@model FoodStreetWeb.Models.Poi
+﻿@model FoodStreetWeb.Models.CreatePoiWithFoodsViewModel
 
 @{
     ViewData["Title"] = "Thêm quán ăn";
@@ -8,7 +8,7 @@
 
 <h2>Thêm quán ăn</h2>
 
-<form asp-action="Create" method="post">
+<form asp-action="Create" method="post" enctype="multipart/form-data">
 
     <div class="form-group">
         <label>Tên quán</label>
@@ -78,18 +78,33 @@
 
     <div class="form-group">
         <label>Link ảnh</label>
-        <input asp-for="ImageUrl"
-               class="form-control" />
+        <input type="file" name="ImageFile" class="form-control" />
     </div>
 
     <br />
+
+    <hr />
+
+    <h4>Thêm món ăn</h4>
+
+    <div class="form-group">
+        <label>Số món</label>
+        <input type="number" id="foodCount" class="form-control" min="1" />
+        <button type="button" class="btn btn-secondary mt-2" onclick="generateFoodInputs()">
+            Tạo form món ăn
+        </button>
+    </div>
+
+    <br />
+
+    <div id="foodContainer"></div>
 
     <button type="submit" class="btn btn-primary">
         Lưu
     </button>
 
 </form>
-
+<div asp-validation-summary="All" class="text-danger"></div>
 <p>
     <a asp-action="Index">Quay lại danh sách</a>
 </p>
@@ -238,6 +253,43 @@
 
         // mở map tại vị trí mặc định
         map.setView([defaultLat, defaultLng], 15);
+
+        // ===== FOOD DYNAMIC =====
+        function generateFoodInputs() {
+
+        var count = document.getElementById("foodCount").value;
+        var container = document.getElementById("foodContainer");
+
+        container.innerHTML = "";
+
+        for (var i = 0; i < count; i++) {
+
+        container.innerHTML += `
+        <div style="border:1px solid #ccc;padding:10px;margin-bottom:10px">
+
+        <h5>Món ${i + 1}</h5>
+
+        <input name="Foods[${i}].Name"
+        class="form-control mb-2"
+        placeholder="Tên món" />
+
+        <input name="Foods[${i}].Price"
+        type="number"
+        class="form-control mb-2"
+        placeholder="Giá" />
+
+        <input name="Foods[${i}].Description"
+        class="form-control mb-2"
+        placeholder="Mô tả" />
+
+        <input type="file"
+        name="Foods[${i}].ImageFile"
+        class="form-control mb-2" />
+
+        </div>
+        `;
+        }
+        }
 
     </script>
 

@@ -1,17 +1,20 @@
-﻿using FoodStreetWeb.Models;
+﻿using System.Text.Json.Serialization;
 
-public class Food
+namespace FoodStreetWeb.Models
 {
-    public int Id { get; set; }
+    public class Food
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public decimal Price { get; set; }
+        public string Description { get; set; }
+        public string ImageUrl { get; set; }
 
-    public string Name { get; set; }
+        public int PoiId { get; set; }
 
-    public decimal Price { get; set; }
+        [JsonIgnore]
+        public Poi Poi { get; set; }
 
-    public string Description { get; set; }
-
-    public string ImageUrl { get; set; }
-
-    public int PoiId { get; set; }
-    public Poi Poi { get; set; }
+        public ICollection<FoodTranslation>? Translations { get; set; }
+    }
 }

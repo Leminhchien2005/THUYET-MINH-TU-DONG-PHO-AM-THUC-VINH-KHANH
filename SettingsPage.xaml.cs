@@ -1,3 +1,4 @@
+using FoodStreetGuide.Resources.Strings;
 using Microsoft.Maui.Storage;
 using System.Globalization;
 
@@ -28,14 +29,25 @@ namespace FoodStreetGuide
                 // Lưu ngôn ngữ
                 Preferences.Set("lang", lang);
 
-                // Đổi ngôn ngữ ngay
-                Thread.CurrentThread.CurrentUICulture = new CultureInfo(lang);
+                // 🔥 FIX: set culture đầy đủ
+                var culture = new CultureInfo(lang);
 
-                // Reload UI
-                App.Current.MainPage = new AppShell();
+                Thread.CurrentThread.CurrentCulture = culture;
+                Thread.CurrentThread.CurrentUICulture = culture;
+
+                CultureInfo.DefaultThreadCurrentCulture = culture;
+                CultureInfo.DefaultThreadCurrentUICulture = culture;
+
+                // 🔥 Reload UI đúng cách
+                Application.Current.MainPage = new AppShell();
             }
 
-            await DisplayAlert("Thông báo", "Đã lưu cài đặt", "OK");
+            // 🔥 dùng resx (không hard-code)
+            await DisplayAlert(
+                AppResources.Settings,
+                AppResources.SavedMessage,
+                "OK"
+            );
         }
     }
 }

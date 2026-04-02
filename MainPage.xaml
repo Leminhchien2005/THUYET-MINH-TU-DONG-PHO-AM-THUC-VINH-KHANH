@@ -124,6 +124,17 @@
                 CornerRadius="22"
                 Clicked="ZoomOut_Clicked"/>
 
+            <Button
+        x:Name="StopAutoSpeakButton"
+        Text="⏹"
+        IsVisible="False"
+        Clicked="StopAutoSpeak_Clicked"
+        BackgroundColor="Red"
+        TextColor="White"
+        WidthRequest="45"
+        HeightRequest="45"
+        CornerRadius="22"/>
+
         </VerticalStackLayout>
 
         <!-- BOTTOM PANEL -->
@@ -331,7 +342,7 @@
                 <Label
                     x:Name="AllTitleLabel"
                     Grid.Row="6"
-                    Text="Tất cả quán"
+                    Text="{x:Static res:AppResources.AllTitle}"
                     FontAttributes="Bold"
                     FontSize="14"
                     Margin="0,30,0,20"/>

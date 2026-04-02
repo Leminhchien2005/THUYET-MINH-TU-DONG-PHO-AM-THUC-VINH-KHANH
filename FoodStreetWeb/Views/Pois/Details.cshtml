@@ -29,6 +29,41 @@
 
 <br />
 
+<button class="btn btn-success" onclick="toggleFoods()">
+    Xem món ăn
+</button>
+
+<div id="foodSection" style="display:none; margin-top:20px;">
+
+    <h4>Món ăn</h4>
+
+    @{
+        var foods = ViewBag.Foods as List<FoodStreetWeb.Models.Food>;
+    }
+
+    @if (foods != null && foods.Count > 0)
+    {
+        foreach (var food in foods)
+        {
+            <div style="border:1px solid #ccc; padding:10px; margin-bottom:10px;">
+                <h5>@food.Name</h5>
+                <p>Giá: @food.Price</p>
+                <p>@food.Description</p>
+
+                @if (!string.IsNullOrEmpty(food.ImageUrl))
+                {
+                    <img src="@food.ImageUrl" style="width:150px;" />
+                }
+            </div>
+        }
+    }
+    else
+    {
+        <p>Chưa có món ăn</p>
+    }
+
+</div>
+
 <h4>Thông tin chủ nhà hàng</h4>
 
 <p><b>Họ tên:</b> @ViewBag.OwnerName</p>
@@ -72,6 +107,16 @@
         color:'blue',
         fillOpacity:0.2
         }).addTo(map);
+
+        function toggleFoods() {
+        var section = document.getElementById("foodSection");
+
+        if (section.style.display === "none") {
+        section.style.display = "block";
+        } else {
+        section.style.display = "none";
+        }
+        }
 
     </script>
 

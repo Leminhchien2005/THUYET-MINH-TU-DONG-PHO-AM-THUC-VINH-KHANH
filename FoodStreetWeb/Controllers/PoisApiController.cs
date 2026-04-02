@@ -20,9 +20,11 @@ namespace FoodStreetWeb.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Poi>>> GetPois()
         {
-            // chỉ trả POI đã được admin duyệt
             return await _context.Pois
                 .Where(p => p.Status == PoiStatus.Approved)
+                .Include(p => p.Translations)
+                .Include(p => p.Foods)
+                    .ThenInclude(f => f.Translations)
                 .ToListAsync();
         }
 
@@ -32,6 +34,9 @@ namespace FoodStreetWeb.Controllers
         {
             var poi = await _context.Pois
                 .Where(p => p.Status == PoiStatus.Approved)
+                .Include(p => p.Translations)
+                .Include(p => p.Foods)
+                    .ThenInclude(f => f.Translations)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (poi == null)

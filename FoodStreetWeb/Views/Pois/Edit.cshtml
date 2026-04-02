@@ -1,4 +1,4 @@
-﻿@model FoodStreetWeb.Models.Poi
+﻿@model FoodStreetWeb.Models.PoiEditViewModel
 
 @{
     ViewData["Title"] = "Sửa quán ăn";
@@ -9,55 +9,83 @@
 
 <h2>Sửa quán ăn</h2>
 
-<form asp-action="Edit" method="post">
+<form asp-action="Edit" method="post" enctype="multipart/form-data">
 
     <input type="hidden" asp-for="Id" />
 
+    <!-- ================= POI INFO ================= -->
     <div class="form-group">
         <label>Tên quán</label>
         <input asp-for="Name" class="form-control" />
     </div>
 
-    <br>
+    <br />
 
     <div class="form-group">
-
         <label>Chọn vị trí trên bản đồ</label>
-
         <div id="map" style="height:400px;border:1px solid #ccc"></div>
-
         <small>Click vào bản đồ để chọn lại vị trí</small>
-
     </div>
 
-    <input asp-for="Latitude" id="Latitude" type="hidden" />
-    <input asp-for="Longitude" id="Longitude" type="hidden" />
+    <input asp-for="Latitude" type="hidden" id="Latitude" />
+    <input asp-for="Longitude" type="hidden" id="Longitude" />
 
-    <br>
+    <br />
 
     <div class="form-group">
         <label>Bán kính (m)</label>
         <input asp-for="Radius" id="Radius" class="form-control" />
     </div>
 
-    <br>
+    <br />
 
     <div class="form-group">
         <label>Mô tả</label>
         <input asp-for="Description" class="form-control" />
     </div>
 
-    <br>
+    <br />
 
     <div class="form-group">
         <label>Link ảnh</label>
-        <input asp-for="ImageUrl" class="form-control" />
+        <input type="file" name="ImageFile" class="form-control" />
+        <input type="hidden" asp-for="ImageUrl" />
     </div>
 
-    <br>
+    <hr />
 
+    <!-- ================= FOOD ================= -->
+    <h4>Món ăn</h4>
+
+    <div id="foodContainer">
+        @for (int i = 0; i < Model.Foods.Count; i++)
+        {
+            <div class="food-item border p-2 mb-2">
+
+                <input type="hidden" name="Foods[@i].Id" value="@Model.Foods[i].Id" />
+
+                <input name="Foods[@i].Name" value="@Model.Foods[i].Name" class="form-control mb-1" />
+                <input name="Foods[@i].Price" value="@Model.Foods[i].Price" class="form-control mb-1" />
+                <input name="Foods[@i].Description" value="@Model.Foods[i].Description" class="form-control mb-1" />
+                <input type="file" name="Foods[@i].ImageFile" class="form-control mb-1" />
+                <input type="hidden" name="Foods[@i].ImageUrl" value="@Model.Foods[i].ImageUrl" />
+
+                <!-- ❌ KHÔNG CÓ NÚT XOÁ -->
+            </div>
+        }
+    </div>
+
+    <button type="button" id="addFoodBtn" class="btn btn-success mt-2">
+        + Thêm món
+    </button>
+
+
+    <br />
+    <br />
+
+    <!-- ================= SUBMIT ================= -->
     <button type="submit" class="btn btn-primary">
-        Cập nhật
+        cập nhật
     </button>
 
 </form>
@@ -66,65 +94,90 @@
     <a asp-action="Index">Quay lại danh sách</a>
 </p>
 
+<!-- ================= SCRIPT ================= -->
 @section Scripts {
 
     <script>
 
-        var lat = @Model.Latitude;
-        var lng = @Model.Longitude;
+        // ================= MAP =================
+        var lat = parseFloat("@Model.Latitude");
+        var lng = parseFloat("@Model.Longitude");
 
-        var map = L.map('map').setView([lat,lng],15);
+        var map = L.map('map').setView([lat, lng], 15);
 
-        L.tileLayer(
-        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        {
-        attribution:'Map data'
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: 'Map data'
         }).addTo(map);
 
-        var marker = L.marker([lat,lng]).addTo(map);
-
+        var marker = L.marker([lat, lng]).addTo(map);
         var circle;
 
-        drawRadius(lat,lng);
+        function drawRadius(lat, lng) {
+        var radius = document.getElementById("Radius").value;
 
-        map.on('click',function(e){
+        if (circle) {
+        map.removeLayer(circle);
+        }
+
+        if (radius) {
+        circle = L.circle([lat, lng], {
+        radius: radius,
+        color: 'blue',
+        fillOpacity: 0.2
+        }).addTo(map);
+        }
+        }
+
+        drawRadius(lat, lng);
+
+        map.on('click', function (e) {
 
         lat = e.latlng.lat;
         lng = e.latlng.lng;
 
-        marker.setLatLng([lat,lng]);
+        marker.setLatLng([lat, lng]);
 
         document.getElementById("Latitude").value = lat;
         document.getElementById("Longitude").value = lng;
 
-        drawRadius(lat,lng);
-
+        drawRadius(lat, lng);
         });
 
-        function drawRadius(lat,lng){
+        document.getElementById("Radius").addEventListener("input", function () {
+        drawRadius(lat, lng);
+        });
 
-        var radius = document.getElementById("Radius").value;
+        // ================= FOOD ADD =================
+        let index = @Model.Foods.Count;
 
-        if(circle){
-        map.removeLayer(circle);
+        document.getElementById("addFoodBtn").addEventListener("click", function () {
+
+        const container = document.getElementById("foodContainer");
+
+        const html = `
+        <div class="food-item border p-2 mb-2">
+
+        <input name="Foods[${index}].Name" placeholder="Tên món" class="form-control mb-1" />
+        <input name="Foods[${index}].Price" placeholder="Giá" class="form-control mb-1" />
+        <input name="Foods[${index}].Description" placeholder="Mô tả" class="form-control mb-1" />
+        <input type="file" name="Foods[${index}].ImageFile" class="form-control mb-1" />
+
+        <button type="button" class="btn btn-danger btn-sm remove-food">
+        Xóa món
+        </button>
+
+        </div>
+        `;
+
+        container.insertAdjacentHTML("beforeend", html);
+        index++;
+        });
+
+        // xoá món mới
+        document.getElementById("foodContainer").addEventListener("click", function (e) {
+        if (e.target.classList.contains("remove-food")) {
+        e.target.closest(".food-item").remove();
         }
-
-        if(radius){
-
-        circle = L.circle([lat,lng],{
-        radius:radius,
-        color:'blue',
-        fillOpacity:0.2
-        }).addTo(map);
-
-        }
-
-        }
-
-        document.getElementById("Radius").addEventListener("input",function(){
-
-        drawRadius(lat,lng);
-
         });
 
     </script>

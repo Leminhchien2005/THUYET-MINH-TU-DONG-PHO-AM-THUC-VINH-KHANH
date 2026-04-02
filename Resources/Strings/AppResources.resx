@@ -56,4 +56,24 @@
     <value>Lưu cài đặt</value>
   </data>
 
+	<data name="SavedMessage">
+		<value>Đã lưu cài đặt</value>
+	</data>
+
+	<data name="AllTitle">
+		<value>Tất cả quán</value>
+	</data>
+
+	<data name="NoInfo">
+		<value>Không có thông tin</value>
+	</data>
+
+	<data name="Error">
+		<value>Lỗi</value>
+	</data>
+
+	<data name="TtsError">
+		<value>Không thể phát âm thanh: </value>
+	</data>
+
 </root>

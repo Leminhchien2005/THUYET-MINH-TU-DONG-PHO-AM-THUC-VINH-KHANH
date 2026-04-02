@@ -20,7 +20,9 @@ namespace FoodStreetGuide.Services
 
             // 🔥 Tạo bảng Poi nếu chưa có
             await _database.CreateTableAsync<Poi>();
-
+            await _database.CreateTableAsync<Food>();
+            await _database.CreateTableAsync<FoodTranslation>();
+            await _database.CreateTableAsync<PoiTranslation>();
             await _database.CreateTableAsync<RouteCache>();
         }
 
@@ -86,6 +88,63 @@ namespace FoodStreetGuide.Services
                     Math.Abs(r.StartLon - slon) < 0.001 &&
                     Math.Abs(r.EndLat - elat) < 0.001 &&
                     Math.Abs(r.EndLon - elon) < 0.001);
+        }
+
+        public async Task AddFoodAsync(Food food)
+        {
+            await Init();
+            await _database.InsertAsync(food);
+        }
+
+        public async Task DeleteAllFoodAsync()
+        {
+            await Init();
+            await _database.DeleteAllAsync<Food>();
+        }
+
+        public async Task AddFoodsAsync(List<Food> foods)
+        {
+            await Init();
+            await _database.InsertAllAsync(foods);
+        }
+
+        public async Task AddPoiTranslationsAsync(List<PoiTranslation> list)
+        {
+            await Init();
+            await _database.InsertAllAsync(list);
+        }
+
+        public async Task DeleteAllFoodTranslationAsync()
+        {
+            await Init();
+            await _database.DeleteAllAsync<FoodTranslation>();
+        }
+
+        public async Task AddFoodTranslationsAsync(List<FoodTranslation> list)
+        {
+            await Init();
+            await _database.InsertAllAsync(list);
+        }
+
+        public async Task DeleteAllPoiTranslationAsync()
+        {
+            await Init();
+            await _database.DeleteAllAsync<PoiTranslation>();
+        }
+
+        public async Task<List<Food>> GetAllFoodAsync()
+        {
+            return await _database.Table<Food>().ToListAsync();
+        }
+
+        public async Task<List<PoiTranslation>> GetAllPoiTranslationAsync()
+        {
+            return await _database.Table<PoiTranslation>().ToListAsync();
+        }
+
+        public async Task<List<FoodTranslation>> GetAllFoodTranslationAsync()
+        {
+            return await _database.Table<FoodTranslation>().ToListAsync();
         }
     }
 }

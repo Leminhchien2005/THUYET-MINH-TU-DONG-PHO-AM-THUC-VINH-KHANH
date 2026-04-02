@@ -11,10 +11,12 @@ namespace FoodStreetWeb.Controllers
     public class PoisController : Controller
     {
         private readonly AppDbContext _context;
+        private readonly TranslateService _translator;
 
-        public PoisController(AppDbContext context)
+        public PoisController(AppDbContext context, TranslateService translator)
         {
             _context = context;
+            _translator = translator;
         }
 
         // =========================
@@ -25,6 +27,7 @@ namespace FoodStreetWeb.Controllers
             var query = from poi in _context.Pois
                         join user in _context.Users
                         on poi.OwnerId equals user.Id
+                        where poi.Status == PoiStatus.Approved
                         select new PoiListViewModel
                         {
                             Id = poi.Id,
@@ -181,22 +184,37 @@ namespace FoodStreetWeb.Controllers
         // =========================
         public async Task<IActionResult> RequestDetails(int id)
         {
+            // ======================
+            // LẤY REQUEST
+            // ======================
             var request = await _context.PoiRequests
                 .FirstOrDefaultAsync(r => r.Id == id);
 
             if (request == null)
                 return NotFound();
 
-            // lấy quán cũ (nếu có)
+            // ======================
+            // LẤY POI CŨ + FOODS
+            // ======================
             Poi oldPoi = null;
 
             if (request.PoiId != null)
             {
                 oldPoi = await _context.Pois
+                    .Include(p => p.Foods)
                     .FirstOrDefaultAsync(p => p.Id == request.PoiId);
             }
 
             ViewBag.OldPoi = oldPoi;
+
+            // ======================
+            // LẤY FOOD REQUESTS (món mới / chỉnh sửa)
+            // ======================
+            var foodRequests = await _context.FoodRequests
+                .Where(f => f.PoiRequestId == id)
+                .ToListAsync();
+
+            ViewBag.FoodRequests = foodRequests;
 
             // ======================
             // LẤY CHỦ NHÀ HÀNG
@@ -230,6 +248,12 @@ namespace FoodStreetWeb.Controllers
             ViewBag.OwnerEmail = owner?.Email;
             ViewBag.OwnerPhone = owner?.PhoneNumber;
 
+            var foods = await _context.Foods
+                .Where(f => f.PoiId == id)
+                .ToListAsync();
+
+            ViewBag.Foods = foods;
+
             return View(poi);
         }
 
@@ -245,33 +269,33 @@ namespace FoodStreetWeb.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "RestaurantOwner")]
-        public async Task<IActionResult> Create(Poi poi)
+        public async Task<IActionResult> Create(CreatePoiWithFoodsViewModel model)
         {
+            if (!ModelState.IsValid)
+            {
+                foreach (var error in ModelState.Values.SelectMany(v => v.Errors))
+                {
+                    Console.WriteLine(error.ErrorMessage);
+                }
+            }
+
             if (ModelState.IsValid)
             {
-                // ADMIN tạo trực tiếp
-                if (User.IsInRole("Admin"))
-                {
-                    poi.Status = PoiStatus.Approved;
-                    _context.Pois.Add(poi);
-                    await _context.SaveChangesAsync();
-
-                    return RedirectToAction(nameof(Index));
-                }
-
-                // OWNER tạo request
                 var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                // 1. Lưu PoiRequest
+                var imageUrl = await SaveImage(model.ImageFile);
 
                 var request = new PoiRequest
                 {
                     RequestType = PoiRequestType.Create,
                     OwnerId = userId,
-                    Name = poi.Name,
-                    Latitude = poi.Latitude,
-                    Longitude = poi.Longitude,
-                    Radius = poi.Radius,
-                    Description = poi.Description,
-                    ImageUrl = poi.ImageUrl,
+                    Name = model.Name,
+                    Latitude = model.Latitude,
+                    Longitude = model.Longitude,
+                    Radius = model.Radius,
+                    Description = model.Description,
+                    ImageUrl = imageUrl,
                     Status = PoiStatus.PendingCreate,
                     CreatedAt = DateTime.Now
                 };
@@ -279,10 +303,32 @@ namespace FoodStreetWeb.Controllers
                 _context.PoiRequests.Add(request);
                 await _context.SaveChangesAsync();
 
+                // 2. Lưu FoodRequest
+                if (model.Foods != null && model.Foods.Count > 0)
+                {
+                    foreach (var food in model.Foods)
+                    {
+                        var foodImage = await SaveImage(food.ImageFile);
+
+                        var foodRequest = new FoodRequest
+                        {
+                            Name = food.Name,
+                            Price = food.Price,
+                            Description = food.Description,
+                            ImageUrl = foodImage,
+                            PoiRequestId = request.Id
+                        };
+
+                        _context.FoodRequests.Add(foodRequest);
+                    }
+
+                    await _context.SaveChangesAsync();
+                }
+
                 return RedirectToAction(nameof(Requests));
             }
 
-            return View(poi);
+            return View(model);
         }
 
         // =========================
@@ -295,72 +341,224 @@ namespace FoodStreetWeb.Controllers
             if (poi == null)
                 return NotFound();
 
-            // tránh sửa quán người khác
-            if (!User.IsInRole("Admin"))
+            var foods = await _context.Foods
+                .Where(f => f.PoiId == id)
+                .Select(f => new FoodEditItem
+                {
+                    Id = f.Id,
+                    Name = f.Name,
+                    Price = f.Price,
+                    Description = f.Description,
+                    ImageUrl = f.ImageUrl,
+                    IsExisting = true
+                })
+                .ToListAsync();
+
+            var vm = new PoiEditViewModel
             {
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                Id = poi.Id,
+                Name = poi.Name,
+                Description = poi.Description,
+                Latitude = poi.Latitude,
+                Longitude = poi.Longitude,
+                Radius = poi.Radius,
+                ImageUrl = poi.ImageUrl,
+                Foods = foods
+            };
 
-                if (poi.OwnerId != userId)
-                    return Unauthorized();
-            }
-
-            return View(poi);
+            return View(vm);
         }
 
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, Poi poi)
+        public async Task<IActionResult> Edit(PoiEditViewModel model)
         {
-            if (id != poi.Id)
-                return NotFound();
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            if (ModelState.IsValid)
+            // =========================
+            // 🔥 ADMIN → UPDATE THẲNG
+            // =========================
+            if (User.IsInRole("Admin"))
             {
-                // ADMIN sửa trực tiếp
-                if (User.IsInRole("Admin"))
+                var poi = await _context.Pois
+                    .Include(p => p.Foods)
+                    .FirstOrDefaultAsync(p => p.Id == model.Id);
+
+                if (poi == null)
+                    return NotFound();
+
+                // ===== update POI =====
+                poi.Name = model.Name;
+                poi.Latitude = model.Latitude;
+                poi.Longitude = model.Longitude;
+                poi.Radius = model.Radius;
+                poi.Description = model.Description;
+                if (model.ImageFile != null)
                 {
-                    var existingPoi = await _context.Pois.FindAsync(id);
-
-                    if (existingPoi == null)
-                        return NotFound();
-
-                    existingPoi.Name = poi.Name;
-                    existingPoi.Latitude = poi.Latitude;
-                    existingPoi.Longitude = poi.Longitude;
-                    existingPoi.Radius = poi.Radius;
-                    existingPoi.Description = poi.Description;
-                    existingPoi.ImageUrl = poi.ImageUrl;
-
-                    await _context.SaveChangesAsync();
-
-                    return RedirectToAction(nameof(Index));
+                    poi.ImageUrl = await SaveImage(model.ImageFile);
                 }
 
-                // OWNER gửi request
-                var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-                var request = new PoiRequest
+                // ===== update FOODS =====
+                foreach (var food in model.Foods)
                 {
-                    PoiId = id,
-                    RequestType = PoiRequestType.Update,
-                    OwnerId = userId,
-                    Name = poi.Name,
-                    Latitude = poi.Latitude,
-                    Longitude = poi.Longitude,
-                    Radius = poi.Radius,
-                    Description = poi.Description,
-                    ImageUrl = poi.ImageUrl,
-                    Status = PoiStatus.PendingUpdate,
-                    CreatedAt = DateTime.Now
-                };
+                    if (food.Id > 0)
+                    {
+                        var existing = poi.Foods.FirstOrDefault(f => f.Id == food.Id);
 
-                _context.PoiRequests.Add(request);
-                await _context.SaveChangesAsync();
+                        if (existing != null)
+                        {
+                            existing.Name = food.Name;
+                            existing.Price = food.Price;
+                            existing.Description = food.Description;
+                            if (food.ImageFile != null)
+                            {
+                                existing.ImageUrl = await SaveImage(food.ImageFile);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        poi.Foods.Add(new Food
+                        {
+                            Name = food.Name,
+                            Price = food.Price,
+                            Description = food.Description,
+                            ImageUrl = food.ImageUrl,
+                            PoiId = poi.Id
+                        });
+                    }
+                }
 
-                return RedirectToAction(nameof(Requests));
+                await _context.SaveChangesAsync(); // ✅ chỉ 1 lần ở đây
+
+                // =========================
+                // 🔥 UPDATE TRANSLATION
+                // =========================
+                var languages = new[] { "vi", "en", "zh" };
+
+                // ===== POI =====
+                foreach (var lang in languages)
+                {
+                    var trans = await _context.PoiTranslations
+                        .FirstOrDefaultAsync(x => x.PoiId == poi.Id && x.LanguageCode == lang);
+
+                    if (trans == null)
+                    {
+                        trans = new PoiTranslation
+                        {
+                            PoiId = poi.Id,
+                            LanguageCode = lang
+                        };
+
+                        _context.PoiTranslations.Add(trans);
+                    }
+
+                    trans.Name = poi.Name; // ❌ không dịch tên
+
+                    if (lang == "vi")
+                    {
+                        trans.Description = poi.Description;
+                    }
+                    else
+                    {
+                        trans.Description = await _translator.Translate(poi.Description ?? "", "vi", lang);
+                    }
+                }
+
+                // ===== FOOD =====
+                var foods = await _context.Foods
+                    .Where(x => x.PoiId == poi.Id)
+                    .ToListAsync();
+
+                foreach (var food in foods)
+                {
+                    foreach (var lang in languages)
+                    {
+                        var trans = await _context.FoodTranslations
+                            .FirstOrDefaultAsync(x => x.FoodId == food.Id && x.LanguageCode == lang);
+
+                        if (trans == null)
+                        {
+                            trans = new FoodTranslation
+                            {
+                                FoodId = food.Id,
+                                LanguageCode = lang
+                            };
+
+                            _context.FoodTranslations.Add(trans);
+                        }
+
+                        if (lang == "vi")
+                        {
+                            trans.Name = food.Name;
+                            trans.Description = food.Description;
+                        }
+                        else
+                        {
+                            trans.Name = await _translator.Translate(food.Name, "vi", lang);
+                            trans.Description = await _translator.Translate(food.Description ?? "", "vi", lang);
+                        }
+                    }
+                }
+
+                await _context.SaveChangesAsync(); // lưu translation
+
+                return RedirectToAction("Index");
             }
 
-            return View(poi);
+            // =========================
+            // 👤 USER → REQUEST
+            // =========================
+            var imageUrl = model.ImageUrl;
+
+            if (model.ImageFile != null)
+            {
+                imageUrl = await SaveImage(model.ImageFile);
+            }
+
+            var poiRequest = new PoiRequest
+            {
+                PoiId = model.Id,
+                OwnerId = userId,
+                RequestType = PoiRequestType.Update,
+                Name = model.Name,
+                Latitude = model.Latitude,
+                Longitude = model.Longitude,
+                Radius = model.Radius,
+                Description = model.Description,
+                ImageUrl = imageUrl, // ✅ dùng ảnh mới nếu có
+                Status = PoiStatus.PendingUpdate,
+                CreatedAt = DateTime.Now
+            };
+
+            _context.PoiRequests.Add(poiRequest);
+            await _context.SaveChangesAsync();
+
+            if (model.Foods != null)
+            {
+                foreach (var food in model.Foods)
+                {
+                    var foodImage = food.ImageUrl;
+
+                    if (food.ImageFile != null)
+                    {
+                        foodImage = await SaveImage(food.ImageFile);
+                    }
+
+                    _context.FoodRequests.Add(new FoodRequest
+                    {
+                        PoiRequestId = poiRequest.Id,
+                        FoodId = food.Id,
+                        Name = food.Name,
+                        Price = food.Price,
+                        Description = food.Description,
+                        ImageUrl = foodImage // ✅ FIX ở đây
+                    });
+                }
+
+                await _context.SaveChangesAsync();
+            }
+
+            return RedirectToAction("Requests");
         }
 
         // =========================
@@ -387,7 +585,9 @@ namespace FoodStreetWeb.Controllers
 
                 if (poi != null)
                 {
-                    _context.Pois.Remove(poi);
+                    poi.Status = PoiStatus.Rejected;
+
+                    _context.Pois.Update(poi);
                     await _context.SaveChangesAsync();
                 }
 
@@ -451,6 +651,84 @@ namespace FoodStreetWeb.Controllers
                 };
 
                 _context.Pois.Add(poi);
+                await _context.SaveChangesAsync(); // có poi.Id
+
+                // ===== COPY FOOD =====
+                var foodRequests = await _context.FoodRequests
+                    .Where(x => x.PoiRequestId == request.Id)
+                    .ToListAsync();
+
+                var newFoods = new List<Food>();
+
+                foreach (var fr in foodRequests)
+                {
+                    var food = new Food
+                    {
+                        Name = fr.Name,
+                        Price = fr.Price,
+                        Description = fr.Description,
+                        ImageUrl = fr.ImageUrl,
+                        PoiId = poi.Id
+                    };
+
+                    newFoods.Add(food);
+                }
+
+                _context.Foods.AddRange(newFoods);
+                await _context.SaveChangesAsync(); // có food.Id
+
+                // =========================
+                // 🔥 DỊCH
+                // =========================
+                // ===== VI (gốc) =====
+                _context.PoiTranslations.Add(new PoiTranslation
+                {
+                    PoiId = poi.Id,
+                    LanguageCode = "vi",
+                    Name = poi.Name,
+                    Description = poi.Description
+                });
+
+                // ===== EN + ZH =====
+                var languages = new[] { "en", "zh" };
+
+                foreach (var lang in languages)
+                {
+                    _context.PoiTranslations.Add(new PoiTranslation
+                    {
+                        PoiId = poi.Id,
+                        LanguageCode = lang,
+                        Name = poi.Name,
+                        Description = await _translator.Translate(poi.Description ?? "", "vi", lang)
+                    });
+                }
+
+                // ===== FOOD TRANSLATION =====
+                foreach (var food in newFoods)
+                {
+                    // ===== VI =====
+                    _context.FoodTranslations.Add(new FoodTranslation
+                    {
+                        FoodId = food.Id,
+                        LanguageCode = "vi",
+                        Name = food.Name,
+                        Description = food.Description
+                    });
+
+                    // ===== EN + ZH =====
+                    foreach (var lang in languages)
+                    {
+                        _context.FoodTranslations.Add(new FoodTranslation
+                        {
+                            FoodId = food.Id,
+                            LanguageCode = lang,
+                            Name = await _translator.Translate(food.Name, "vi", lang),
+                            Description = await _translator.Translate(food.Description ?? "", "vi", lang)
+                        });
+                    }
+                }
+
+                await _context.SaveChangesAsync(); // lưu translation
             }
             else if (request.RequestType == PoiRequestType.Update)
             {
@@ -458,6 +736,7 @@ namespace FoodStreetWeb.Controllers
 
                 if (poi != null)
                 {
+                    // ===== UPDATE POI =====
                     poi.Name = request.Name;
                     poi.Latitude = request.Latitude;
                     poi.Longitude = request.Longitude;
@@ -465,6 +744,116 @@ namespace FoodStreetWeb.Controllers
                     poi.Description = request.Description;
                     poi.ImageUrl = request.ImageUrl;
                 }
+
+                // ===== FOOD SYNC =====
+                var foodRequests = await _context.FoodRequests
+                    .Where(f => f.PoiRequestId == request.Id)
+                    .ToListAsync();
+
+                var oldFoods = await _context.Foods
+                    .Where(f => f.PoiId == request.PoiId)
+                    .ToListAsync();
+
+                foreach (var fr in foodRequests)
+                {
+                    if (fr.FoodId.HasValue)
+                    {
+                        var existing = oldFoods.FirstOrDefault(x => x.Id == fr.FoodId.Value);
+
+                        if (existing != null)
+                        {
+                            existing.Name = fr.Name;
+                            existing.Price = fr.Price;
+                            existing.Description = fr.Description;
+                            existing.ImageUrl = fr.ImageUrl;
+                        }
+                    }
+                    else
+                    {
+                        _context.Foods.Add(new Food
+                        {
+                            Name = fr.Name,
+                            Price = fr.Price,
+                            Description = fr.Description,
+                            ImageUrl = fr.ImageUrl,
+                            PoiId = request.PoiId.Value
+                        });
+                    }
+                }
+
+                await _context.SaveChangesAsync(); // 🔥 phải save trước
+
+                // =========================
+                // 🔥 UPDATE TRANSLATION
+                // =========================
+                var languages = new[] { "vi", "en", "zh" };
+
+                // ===== POI =====
+                foreach (var lang in languages)
+                {
+                    var trans = await _context.PoiTranslations
+                        .FirstOrDefaultAsync(x => x.PoiId == poi.Id && x.LanguageCode == lang);
+
+                    if (trans == null)
+                    {
+                        trans = new PoiTranslation
+                        {
+                            PoiId = poi.Id,
+                            LanguageCode = lang
+                        };
+
+                        _context.PoiTranslations.Add(trans);
+                    }
+
+                    trans.Name = poi.Name; // ❌ không dịch tên
+
+                    if (lang == "vi")
+                    {
+                        trans.Description = poi.Description;
+                    }
+                    else
+                    {
+                        trans.Description = await _translator.Translate(poi.Description ?? "", "vi", lang);
+                    }
+                }
+
+                // ===== FOOD =====
+                var foods = await _context.Foods
+                    .Where(x => x.PoiId == poi.Id)
+                    .ToListAsync();
+
+                foreach (var food in foods)
+                {
+                    foreach (var lang in languages)
+                    {
+                        var trans = await _context.FoodTranslations
+                            .FirstOrDefaultAsync(x => x.FoodId == food.Id && x.LanguageCode == lang);
+
+                        if (trans == null)
+                        {
+                            trans = new FoodTranslation
+                            {
+                                FoodId = food.Id,
+                                LanguageCode = lang
+                            };
+
+                            _context.FoodTranslations.Add(trans);
+                        }
+
+                        if (lang == "vi")
+                        {
+                            trans.Name = food.Name;
+                            trans.Description = food.Description;
+                        }
+                        else
+                        {
+                            trans.Name = await _translator.Translate(food.Name, "vi", lang);
+                            trans.Description = await _translator.Translate(food.Description ?? "", "vi", lang);
+                        }
+                    }
+                }
+
+                await _context.SaveChangesAsync();
             }
             else if (request.RequestType == PoiRequestType.Delete)
             {
@@ -472,7 +861,9 @@ namespace FoodStreetWeb.Controllers
 
                 if (poi != null)
                 {
-                    _context.Pois.Remove(poi);
+                    poi.Status = PoiStatus.Rejected;
+
+                    _context.Pois.Update(poi);
                 }
             }
 
@@ -502,5 +893,21 @@ namespace FoodStreetWeb.Controllers
 
             return RedirectToAction(nameof(AdminRequests));
         }
+
+        private async Task<string> SaveImage(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return null;
+
+            var fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
+
+            var path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/images", fileName);
+
+            using var stream = new FileStream(path, FileMode.Create);
+            await file.CopyToAsync(stream);
+
+            return "/images/" + fileName;
+        }
+
     }
 }

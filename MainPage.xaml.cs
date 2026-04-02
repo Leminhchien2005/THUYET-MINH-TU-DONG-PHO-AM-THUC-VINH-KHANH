@@ -1,12 +1,13 @@
 using FoodStreetGuide.Models;
+using FoodStreetGuide.Resources.Strings;
 using FoodStreetGuide.Services;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Maps;
 using Microsoft.Maui.Networking;
 using System.Diagnostics;
-using System.Text.Json;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 
 namespace FoodStreetGuide;
@@ -20,15 +21,25 @@ public partial class MainPage : ContentPage
     private List<Poi> _poiList = new();
 
     private Location? _lastLocation;
+    private string CurrentLang =>
+    Preferences.Get("lang", "vi");
 
     double panelStart;
 
     Poi? _selectedPoi;
     CancellationTokenSource? _speechCts;
+    bool _isAutoSpeakEnabled = true;
 
     // 🔥 NEW: AUTO SPEAK
     private HashSet<int> _spokenPoiIds = new();
     const double TRIGGER_DISTANCE_KM = 0.1; // 100m
+    private List<int> _lastNearbyPoiIds = new();
+    private DateTime _lastSpeakTime = DateTime.MinValue;
+
+    const int MAX_POI_READ = 3; // đọc tối đa 3 quán
+    const double RESET_DISTANCE_KM = 0.15; // ra khỏi vùng thì reset
+    const int SPEAK_COOLDOWN_SECONDS = 10; // tránh spam
+    private DateTime _lastLocationCheck = DateTime.MinValue;
 
     bool _suppressSearchUpdate;
     bool _isInitialized;
@@ -179,7 +190,7 @@ public partial class MainPage : ContentPage
             );
         }
 
-        Dispatcher.StartTimer(TimeSpan.FromSeconds(1), () =>
+        Dispatcher.StartTimer(TimeSpan.FromSeconds(5), () =>
         {
             _ = CheckLocationAsync();
             return true;
@@ -195,9 +206,46 @@ public partial class MainPage : ContentPage
     {
         try
         {
+            var locales = await TextToSpeech.Default.GetLocalesAsync();
+
+            var lang = CurrentLang; // vi / en / zh
+
+            // 🔥 map ngôn ngữ → locale chuẩn
+            Locale locale = null;
+
+            if (lang == "vi")
+                locale = locales.FirstOrDefault(l => l.Language.StartsWith("vi"));
+
+            else if (lang == "en")
+                locale = locales.FirstOrDefault(l => l.Language.StartsWith("en"));
+
+            else if (lang == "zh")
+                locale = locales.FirstOrDefault(l =>
+                    l.Language.StartsWith("zh") || l.Language.StartsWith("cmn"));
+
+            // fallback nếu không có
+            locale ??= locales.FirstOrDefault();
+
+            // 🔥 cancel cái đang phát (nếu có)
+            _speechCts?.Cancel();
+            _speechCts = new CancellationTokenSource();
+
+            // 🔥 hiện nút stop
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                StopAutoSpeakButton.IsVisible = true;
+            });
+
             await TextToSpeech.Default.SpeakAsync(text, new SpeechOptions
             {
-                Volume = 1.0f
+                Volume = (float)Preferences.Get("volume", 1.0),
+                Locale = locale
+            }, cancelToken: _speechCts.Token);
+
+            // 🔥 đọc xong thì ẩn nút
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                StopAutoSpeakButton.IsVisible = false;
             });
         }
         catch (Exception ex)
@@ -212,8 +260,7 @@ public partial class MainPage : ContentPage
         try
         {
             var apiService = new ApiService();
-
-            var pois = await apiService.GetPoisAsync();
+            var pois = await apiService.GetPoisWithFoodsAsync();
 
             if (pois == null || pois.Count == 0)
             {
@@ -223,20 +270,103 @@ public partial class MainPage : ContentPage
 
             Debug.WriteLine("API COUNT: " + pois.Count);
 
-            await _database.ReplaceAllDataAsync(pois);
+            // =========================
+            // CLEAR DATABASE
+            // =========================
+            await _database.DeleteAllPoiAsync();
+            await _database.DeleteAllFoodAsync();
+            await _database.DeleteAllFoodTranslationAsync();
+            await _database.DeleteAllPoiTranslationAsync();
+
+            var poiEntities = new List<Poi>();
+            var foodEntities = new List<Food>();
+            var foodTransEntities = new List<FoodTranslation>();
+            var poiTransEntities = new List<PoiTranslation>();
+
+            foreach (var poi in pois)
+            {
+                // ================= POI =================
+                poiEntities.Add(new Poi
+                {
+                    Id = poi.Id,
+                    Name = poi.Name,
+                    Latitude = poi.Latitude,
+                    Longitude = poi.Longitude,
+                    Radius = poi.Radius,
+                    Description = poi.Description,
+                    ImageUrl = poi.ImageUrl
+                });
+
+                // ================= FOOD =================
+                if (poi.Foods != null)
+                {
+                    foreach (var food in poi.Foods)
+                    {
+                        foodEntities.Add(new Food
+                        {
+                            Id = food.Id,
+                            Name = food.Name,
+                            Price = food.Price,
+                            Description = food.Description,
+                            ImageUrl = food.ImageUrl,
+                            PoiId = food.PoiId
+                        });
+
+                        if (food.Translations != null)
+                        {
+                            foreach (var t in food.Translations)
+                            {
+                                foodTransEntities.Add(new FoodTranslation
+                                {
+                                    FoodId = food.Id,
+                                    LanguageCode = t.LanguageCode,
+                                    Name = t.Name,
+                                    Description = t.Description
+                                });
+                            }
+                        }
+                    }
+                }
+
+                // ================= POI TRANSLATION =================
+                if (poi.Translations != null)
+                {
+                    foreach (var t in poi.Translations)
+                    {
+                        poiTransEntities.Add(new PoiTranslation
+                        {
+
+                            PoiId = poi.Id,
+                            LanguageCode = t.LanguageCode,
+                            Name = t.Name,
+                            Description = t.Description
+                        });
+                    }
+                }
+            }
+
+            // ================= BULK INSERT =================
+            await _database.AddPoisAsync(poiEntities);
+            await _database.AddFoodsAsync(foodEntities);
+            await _database.AddPoiTranslationsAsync(poiTransEntities);
+            await _database.AddFoodTranslationsAsync(foodTransEntities);
 
             var sqliteList = await _database.GetAllPoiAsync();
 
             Debug.WriteLine("SQLITE COUNT: " + sqliteList.Count);
 
-            _poiList = sqliteList;
+            var poiTrans = await _database.GetAllPoiTranslationAsync();
+
+            _poiList = sqliteList
+                .Select(p => LocalizePoi(p, poiTrans))
+                .ToList();
+
+            await DebugDatabaseAsync();
 
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 RefreshLists(SearchEntry?.Text);
-
                 LoadMapPins();
-
                 TryShowPendingPoi();
             });
         }
@@ -257,14 +387,14 @@ public partial class MainPage : ContentPage
     // LOAD SQLITE → LIST
     private async Task LoadDataAsync()
     {
-        _poiList = await _database.GetAllPoiAsync();
+        var pois = await _database.GetAllPoiAsync();
+        var poiTrans = await _database.GetAllPoiTranslationAsync();
 
-        if (_poiList == null)
-            _poiList = new List<Poi>();
+        _poiList = pois
+            .Select(p => LocalizePoi(p, poiTrans))
+            .ToList();
 
         RefreshLists(SearchEntry?.Text);
-
-        Debug.WriteLine("POI COUNT: " + _poiList.Count);
     }
 
     // HIỆN PIN TRÊN MAP
@@ -298,27 +428,49 @@ public partial class MainPage : ContentPage
     // CẬP NHẬT VỊ TRÍ
     async Task CheckLocationAsync()
     {
+        if ((DateTime.Now - _lastLocationCheck).TotalSeconds < 2)
+            return;
+
+        _lastLocationCheck = DateTime.Now;
+
         var location = await _locationService.GetCurrentLocationAsync();
 
         if (location == null)
             return;
 
+        double moveDistance = 0;
+
         if (_lastLocation != null)
         {
-            var moveDistance = Location.CalculateDistance(
+            moveDistance = Location.CalculateDistance(
                 _lastLocation,
                 location,
                 DistanceUnits.Kilometers
             ) * 1000;
-
-            if (moveDistance < 2)
-                return;
         }
+
+        if (moveDistance < 5)
+        {
+            return;
+        }
+
+        // 🔥 nếu user di chuyển xa lại → bật lại auto speak
+        if (moveDistance > 15)
+        {
+            _isAutoSpeakEnabled = true;
+        }
+
+        // 🔥 detect đứng yên
+        bool isStandingStill = moveDistance < 2;
+
 
         _lastLocation = location;
 
         LatLabel.Text = $"Latitude: {location.Latitude:F6}";
 
+        // =======================
+        // TÍNH DISTANCE
+        // =======================
         foreach (var poi in _poiList)
         {
             poi.DistanceKm = DistanceHelper.CalculateDistanceKm(
@@ -326,31 +478,69 @@ public partial class MainPage : ContentPage
                 location.Longitude,
                 poi.Latitude,
                 poi.Longitude);
+        }
 
-            // 🔥 NEW: AUTO SPEAK
-            if (poi.DistanceKm <= TRIGGER_DISTANCE_KM && !_spokenPoiIds.Contains(poi.Id))
+        // =======================
+        // LẤY POI GẦN
+        // =======================
+        var nearbyPois = _poiList
+            .Where(p => p.DistanceKm <= TRIGGER_DISTANCE_KM)
+            .OrderBy(p => p.DistanceKm)
+            .ThenByDescending(p => p.Radius)
+            .ThenByDescending(p => !string.IsNullOrEmpty(p.Description))
+            .ThenBy(p => p.Id)
+            .ToList();
+
+        var currentIds = nearbyPois.Select(p => p.Id).ToList();
+
+        // =======================
+        // CHECK THAY ĐỔI VÙNG
+        // =======================
+        bool isDifferent = !_lastNearbyPoiIds.SequenceEqual(currentIds);
+
+        // =======================
+        // CHECK COOLDOWN
+        // =======================
+        bool canSpeak = (DateTime.Now - _lastSpeakTime).TotalSeconds >
+            (isStandingStill ? 30 : SPEAK_COOLDOWN_SECONDS);
+        // =======================
+        // SPEAK
+        // =======================
+        if (_isAutoSpeakEnabled && nearbyPois.Count > 0 && (isDifferent || canSpeak))
+        {
+            string text = BuildSpeakText(nearbyPois);
+
+            if (!string.IsNullOrEmpty(text))
             {
-                _spokenPoiIds.Add(poi.Id);
-
-                string text = !string.IsNullOrWhiteSpace(poi.Description)
-                    ? poi.Description
-                    : poi.Name;
+                _lastNearbyPoiIds = currentIds;
+                _lastSpeakTime = DateTime.Now;
 
                 _ = SpeakAsync(text);
             }
-
-            // 🔥 NEW: reset nếu đi xa
-            if (poi.DistanceKm > TRIGGER_DISTANCE_KM)
-            {
-                _spokenPoiIds.Remove(poi.Id);
-            }
         }
 
-        _poiList = _poiList
-            .OrderBy(p => p.DistanceKm)
-            .ToList();
+        // =======================
+        // RESET KHI RA KHỎI VÙNG
+        // =======================
+        if (nearbyPois.Count == 0)
+        {
+            _lastNearbyPoiIds.Clear();
+        }
 
-        RefreshLists(SearchEntry?.Text);
+        // =======================
+        // SORT + REFRESH UI
+        // =======================
+        if (moveDistance > 10)
+        {
+            _poiList = _poiList
+                .OrderBy(p => p.DistanceKm)
+                .ToList();
+        }
+
+        if (moveDistance > 10)
+        {
+            RefreshLists(SearchEntry?.Text);
+        }
     }
 
     // CLICK QUÁN → ZOOM MAP
@@ -402,10 +592,10 @@ public partial class MainPage : ContentPage
         TopCloseButton.IsVisible = true;
         BottomTabBar.IsVisible = false;
 
-        TitleLabel.Text = poi.Name ?? "Quán gần bạn";
+        TitleLabel.Text = poi.Name ?? AppResources.NearbyTitle;
 
         DetailDescription.Text = poi.Description;
-        DetailDistance.Text = $"Khoảng cách {poi.DistanceKm:0.00} km";
+        DetailDistance.Text = string.Format(AppResources.DistanceFormat, poi.DistanceKm);
         RouteInfoLabel.Text = string.Empty;
         RouteInfoPanel.IsVisible = false;
 
@@ -432,7 +622,7 @@ public partial class MainPage : ContentPage
         AllPoiList.IsVisible = true;
         NearbyTitleLabel.IsVisible = true;
         AllTitleLabel.IsVisible = true;
-        TitleLabel.Text = "Quán gần bạn";
+        TitleLabel.Text = AppResources.NearbyTitle;
         RouteInfoLabel.Text = string.Empty;
         RouteInfoPanel.IsVisible = false;
         MyMap.MapElements.Clear();
@@ -619,24 +809,28 @@ public partial class MainPage : ContentPage
 
         string textToRead = !string.IsNullOrWhiteSpace(_selectedPoi.Description)
             ? _selectedPoi.Description
-            : (!string.IsNullOrWhiteSpace(_selectedPoi.Name) ? _selectedPoi.Name : "Không có thông tin");
+            : (!string.IsNullOrWhiteSpace(_selectedPoi.Name)
+                ? _selectedPoi.Name
+                : AppResources.NoInfo); // 🔥 sửa
 
         // Bắt đầu phát mới
         _speechCts = new CancellationTokenSource();
-        PlayButton.Text = "⏹️ Dừng";
+        PlayButton.Text = "⏹️"; // (optional: cho gọn)
 
         try
         {
-            // Lấy danh sách ngôn ngữ văn bản thành giọng nói (TTS) trên máy
             var locales = await TextToSpeech.Default.GetLocalesAsync();
 
-            // Tìm Tiếng Việt (bạn có thể thay "vi" bằng "en" nếu muốn tiếng Anh)
-            var viLocale = locales.FirstOrDefault(l => l.Language.ToLower() == "vi" || l.Language.ToLower() == "vie" || l.Country == "VN");
+            var lang = Preferences.Get("lang", "vi");
+
+            // 🔥 FIX: fallback nếu không tìm thấy
+            var locale = locales.FirstOrDefault(l => l.Language.StartsWith(lang))
+                         ?? locales.FirstOrDefault();
 
             await TextToSpeech.Default.SpeakAsync(textToRead, new SpeechOptions
             {
-                Volume = 1.0f,
-                Locale = viLocale // Truyền ngôn ngữ vào đây
+                Volume = (float)Preferences.Get("volume", 1.0),
+                Locale = locale
             }, cancelToken: _speechCts.Token);
         }
         catch (OperationCanceledException)
@@ -645,7 +839,11 @@ public partial class MainPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Lỗi", "Không thể phát âm thanh: " + ex.Message, "OK");
+            await DisplayAlert(
+                AppResources.Error,                      // 🔥 sửa
+                AppResources.TtsError + ex.Message,      // 🔥 sửa
+                "OK"
+            );
         }
         finally
         {
@@ -655,7 +853,7 @@ public partial class MainPage : ContentPage
                 _speechCts = null;
             }
 
-            PlayButton.Text = "📢 Phát";
+            PlayButton.Text = "📢";
         }
     }
 
@@ -805,5 +1003,190 @@ public partial class MainPage : ContentPage
         await view.ScaleTo(1, 100);
 
         await Shell.Current.GoToAsync(nameof(QrScanPage));
+    }
+
+    private async Task DebugDatabaseAsync()
+    {
+        var pois = await _database.GetAllPoiAsync();
+        var foods = await _database.GetAllFoodAsync();
+        var poiTrans = await _database.GetAllPoiTranslationAsync();
+        var foodTrans = await _database.GetAllFoodTranslationAsync();
+
+        // ================= POI =================
+        System.Diagnostics.Debug.WriteLine("===== POI =====");
+        foreach (var p in pois)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"[{p.Id}] {p.Name} - {p.Description}"
+            );
+        }
+
+        // ================= FOOD =================
+        System.Diagnostics.Debug.WriteLine("===== FOOD =====");
+        foreach (var f in foods)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"[{f.Id}] {f.Name} - {f.Description} (POI {f.PoiId})"
+            );
+        }
+
+        // ================= POI TRANSLATION =================
+        System.Diagnostics.Debug.WriteLine("===== POI TRANSLATION =====");
+        foreach (var t in poiTrans)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"POI_ID: {t.PoiId} | LANG: {t.LanguageCode} | NAME: {t.Name} | DESC: {t.Description}"
+            );
+        }
+
+        // ================= FOOD TRANSLATION =================
+        System.Diagnostics.Debug.WriteLine("===== FOOD TRANSLATION =====");
+        foreach (var t in foodTrans)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"FOOD_ID: {t.FoodId} | LANG: {t.LanguageCode} | NAME: {t.Name} | DESC: {t.Description}"
+            );
+        }
+    }
+
+    private Poi LocalizePoi(Poi poi, List<PoiTranslation> trans)
+    {
+        var t = trans.FirstOrDefault(x =>
+                    x.PoiId == poi.Id && x.LanguageCode == CurrentLang)
+                ?? trans.FirstOrDefault(x =>
+                    x.PoiId == poi.Id && x.LanguageCode == "vi");
+
+        if (t != null)
+        {
+            poi.Name = t.Name;
+            poi.Description = t.Description;
+        }
+
+        return poi;
+    }
+
+    private string BuildSpeakText(List<Poi> nearby)
+    {
+        if (nearby == null || nearby.Count == 0)
+            return "";
+
+        // =========================
+        // CASE 1 QUÁN
+        // =========================
+        if (nearby.Count == 1)
+        {
+            var p = nearby.First();
+            int meters = (int)(p.DistanceKm * 1000);
+
+            switch (CurrentLang)
+            {
+                case "en":
+                    return !string.IsNullOrWhiteSpace(p.Description)
+                        ? $"{p.Name}, about {meters} meters away. {p.Description}"
+                        : $"{p.Name}, about {meters} meters away";
+
+                case "zh":
+                    return !string.IsNullOrWhiteSpace(p.Description)
+                        ? $"{p.Name}，距离您大约{meters}米。{p.Description}"
+                        : $"{p.Name}，距离您大约{meters}米";
+
+                default: // vi
+                    return !string.IsNullOrWhiteSpace(p.Description)
+                        ? $"{p.Name}, cách bạn khoảng {meters} mét. {p.Description}"
+                        : $"{p.Name}, cách bạn khoảng {meters} mét";
+            }
+        }
+
+        // =========================
+        // NHIỀU QUÁN
+        // =========================
+        var top = nearby.Take(3).ToList();
+
+        var parts = top.Select(p =>
+        {
+            int meters = (int)(p.DistanceKm * 1000);
+
+            switch (CurrentLang)
+            {
+                case "en":
+                    return !string.IsNullOrWhiteSpace(p.Description)
+                        ? $"{p.Name}, about {meters} meters away, {p.Description}"
+                        : $"{p.Name}, about {meters} meters away";
+
+                case "zh":
+                    return !string.IsNullOrWhiteSpace(p.Description)
+                        ? $"{p.Name}，距离{meters}米，{p.Description}"
+                        : $"{p.Name}，距离{meters}米";
+
+                default:
+                    return !string.IsNullOrWhiteSpace(p.Description)
+                        ? $"{p.Name}, cách bạn khoảng {meters} mét, {p.Description}"
+                        : $"{p.Name}, cách bạn khoảng {meters} mét";
+            }
+        });
+
+        string text = "";
+
+        // =========================
+        // MỞ ĐẦU
+        // =========================
+        switch (CurrentLang)
+        {
+            case "en":
+                text = $"There are {nearby.Count} places near you. ";
+                break;
+
+            case "zh":
+                text = $"您附近有{nearby.Count}个地点。";
+                break;
+
+            default:
+                text = $"Bạn đang gần {nearby.Count} địa điểm. ";
+                break;
+        }
+
+        text += string.Join(". ", parts);
+
+        // =========================
+        // CÒN LẠI
+        // =========================
+        if (nearby.Count > 3)
+        {
+            switch (CurrentLang)
+            {
+                case "en":
+                    text += $". And {nearby.Count - 3} more places nearby";
+                    break;
+
+                case "zh":
+                    text += $"。还有{nearby.Count - 3}个地点在附近";
+                    break;
+
+                default:
+                    text += $". Và còn {nearby.Count - 3} địa điểm khác gần bạn";
+                    break;
+            }
+        }
+
+        return text;
+    }
+
+    void StopAutoSpeak_Clicked(object sender, EventArgs e)
+    {
+        // 🔥 tắt auto speak luôn
+        _isAutoSpeakEnabled = false;
+
+        // 🔥 dừng giọng đang phát
+        if (_speechCts != null && !_speechCts.IsCancellationRequested)
+        {
+            _speechCts.Cancel();
+        }
+
+        StopAutoSpeakButton.IsVisible = false;
+    }
+
+    void EnableAutoSpeak()
+    {
+        _isAutoSpeakEnabled = true;
     }
 }

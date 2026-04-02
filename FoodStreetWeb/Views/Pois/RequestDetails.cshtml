@@ -2,304 +2,482 @@
 @using FoodStreetWeb.Models
 
 @{
-ViewData["Title"] = "Chi tiết yêu cầu";
-var oldPoi = ViewBag.OldPoi as Poi;
+    ViewData["Title"] = "Chi tiết yêu cầu";
+    var oldPoi = ViewBag.OldPoi as Poi;
+    var foodRequests = ViewBag.FoodRequests as List<FoodRequest>;
 }
 
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>  
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>  
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-<h2>Chi tiết yêu cầu</h2>  
+<h2>Chi tiết yêu cầu</h2>
 
-<hr />  
+<hr />
 
-<p><b>Loại yêu cầu:</b> @Model.RequestType</p>  
-<p><b>Trạng thái:</b> @Model.Status</p>  
+<p><b>Loại yêu cầu:</b> @Model.RequestType</p>
+<p><b>Trạng thái:</b> @Model.Status</p>
 
 @if (Model.Status == PoiStatus.Rejected && !string.IsNullOrEmpty(Model.RejectReason))
-{ <div class="alert alert-danger"> <strong>Lý do từ chối:</strong> @Model.RejectReason </div>
+{
+    <div class="alert alert-danger">
+        <strong>Lý do từ chối:</strong> @Model.RejectReason
+    </div>
 }
 
-<p><b>Thời gian gửi:</b> @Model.CreatedAt</p>  
+<p><b>Thời gian gửi:</b> @Model.CreatedAt</p>
 
-<hr />  
+<hr />
 
-<h3>Thông tin chủ nhà hàng</h3>  
+<h3>Thông tin chủ nhà hàng</h3>
 
-<table class="table">  
-<tr>  
-<th>Họ tên</th>  
-<td>@ViewBag.OwnerName</td>  
-</tr>  
+<table class="table">
+    <tr>
+        <th>Họ tên</th>
+        <td>@ViewBag.OwnerName</td>
+    </tr>
 
-<tr>  
-<th>Email</th>  
-<td>@ViewBag.OwnerEmail</td>  
-</tr>  
+    <tr>
+        <th>Email</th>
+        <td>@ViewBag.OwnerEmail</td>
+    </tr>
 
-<tr>  
-<th>Số điện thoại</th>  
-<td>@ViewBag.OwnerPhone</td>  
-</tr>  
-</table>  
+    <tr>
+        <th>Số điện thoại</th>
+        <td>@ViewBag.OwnerPhone</td>
+    </tr>
+</table>
 
-<hr />  
+<hr />
 
+<!-- ===================== UPDATE ===================== -->
 @if (Model.RequestType == PoiRequestType.Update)
 {
+    <h3>Quán hiện tại</h3>
 
-<h3>Quán hiện tại</h3>  
+    <table class="table">
+        <tr>
+            <th>Tên</th>
+            <td>@oldPoi?.Name</td>
+        </tr>
 
-<table class="table">  
+        <tr>
+            <th>Latitude</th>
+            <td>@oldPoi?.Latitude</td>
+        </tr>
 
-<tr>  
-<th>Tên</th>  
-<td>@oldPoi?.Name</td>  
-</tr>  
+        <tr>
+            <th>Longitude</th>
+            <td>@oldPoi?.Longitude</td>
+        </tr>
 
-<tr>  
-<th>Latitude</th>  
-<td>@oldPoi?.Latitude</td>  
-</tr>  
+        <tr>
+            <th>Radius</th>
+            <td>@oldPoi?.Radius</td>
+        </tr>
 
-<tr>  
-<th>Longitude</th>  
-<td>@oldPoi?.Longitude</td>  
-</tr>  
+        <tr>
+            <th>Description</th>
+            <td>@oldPoi?.Description</td>
+        </tr>
+        <tr>
+            <th>Ảnh</th>
+            <td>
+                @if (!string.IsNullOrEmpty(oldPoi?.ImageUrl))
+                {
+                    <img src="@oldPoi.ImageUrl"
+                         style="width:200px;border-radius:10px" />
+                }
+            </td>
+        </tr>
+    </table>
 
-<tr>  
-<th>Radius</th>  
-<td>@oldPoi?.Radius</td>  
-</tr>  
+    <h4>Bản đồ quán hiện tại</h4>
+    <div id="mapOld" style="height:350px;border:1px solid #ccc"></div>
 
-<tr>  
-<th>Description</th>  
-<td>@oldPoi?.Description</td>  
-</tr>  
+    <button class="btn btn-primary" onclick="toggleOldFoods()">
+        Xem món ăn
+    </button>
 
-</table>  
+    <div id="oldFoods" style="display:none;margin-top:15px;">
+        <h4>Món ăn hiện tại</h4>
 
-<h4>Bản đồ quán hiện tại</h4>  
+        <ul class="list-group">
+            @if (oldPoi != null)
+            {
+                foreach (var f in oldPoi?.Foods ?? new List<Food>())
+                {
+                    <li class="list-group-item">
 
-<div id="mapOld" style="height:350px;border:1px solid #ccc"></div>  
+                        <b>@f.Name</b> - @f.Price
 
-<h3>Thông tin yêu cầu sửa</h3>  
+                        <br />
 
-<table class="table">  
+                        @if (!string.IsNullOrEmpty(f.ImageUrl))
+                        {
+                            <img src="@f.ImageUrl"
+                                 style="width:120px;height:120px;object-fit:cover;margin-top:5px;border-radius:8px" />
+                        }
 
-<tr>  
-<th>Tên</th>  
-<td>@Model.Name</td>  
-</tr>  
+                    </li>
+                }
+            }
+        </ul>
+    </div>
 
-<tr>  
-<th>Latitude</th>  
-<td>@Model.Latitude</td>  
-</tr>  
+    <h3>Thông tin yêu cầu sửa</h3>
 
-<tr>  
-<th>Longitude</th>  
-<td>@Model.Longitude</td>  
-</tr>  
+    <table class="table">
+        <tr>
+            <th>Tên</th>
+            <td>@Model.Name</td>
+        </tr>
 
-<tr>  
-<th>Radius</th>  
-<td>@Model.Radius</td>  
-</tr>  
+        <tr>
+            <th>Latitude</th>
+            <td>@Model.Latitude</td>
+        </tr>
 
-<tr>  
-<th>Description</th>  
-<td>@Model.Description</td>  
-</tr>  
+        <tr>
+            <th>Longitude</th>
+            <td>@Model.Longitude</td>
+        </tr>
 
-</table>  
+        <tr>
+            <th>Radius</th>
+            <td>@Model.Radius</td>
+        </tr>
 
-<h4>Bản đồ vị trí yêu cầu sửa</h4>  
+        <tr>
+            <th>Description</th>
+            <td>@Model.Description</td>
+        </tr>
+        <tr>
+            <th>Ảnh</th>
+            <td>
+                @if (!string.IsNullOrEmpty(Model.ImageUrl))
+                {
+                    <img src="@Model.ImageUrl"
+                         style="width:200px;border-radius:10px" />
+                }
+            </td>
+        </tr>
+    </table>
 
-<div id="mapNew" style="height:350px;border:1px solid #ccc"></div>  
+    <h4>Bản đồ vị trí yêu cầu sửa</h4>
+    <div id="mapNew" style="height:350px;border:1px solid #ccc"></div>
 
-}
+    <button class="btn btn-success" onclick="toggleNewFoods()">
+        Xem món ăn
+    </button>
 
+    <div id="newFoods" style="display:none;margin-top:15px;">
+        <h4>Món ăn yêu cầu</h4>
+
+        <ul class="list-group">
+            @if (foodRequests != null)
+            {
+                foreach (var f in foodRequests)
+                {
+                    <li class="list-group-item">
+
+                        <b>@f.Name</b> - @f.Price
+
+                        <br />
+
+                        @if (!string.IsNullOrEmpty(f.ImageUrl))
+                        {
+                            <img src="@f.ImageUrl"
+                                 style="width:120px;height:120px;object-fit:cover;margin-top:5px;border-radius:8px" />
+                        }
+
+                    </li>
+                }
+            }
+        </ul>
+    </div>
+
+   }
+<!-- ===================== CREATE ===================== -->
 @if (Model.RequestType == PoiRequestType.Create)
 {
+    <h3>Thông tin quán mới</h3>
 
-<h3>Thông tin quán mới</h3>  
+    <table class="table">
+        <tr>
+            <th>Tên</th>
+            <td>@Model.Name</td>
+        </tr>
 
-<table class="table">  
+        <tr>
+            <th>Latitude</th>
+            <td>@Model.Latitude</td>
+        </tr>
 
-<tr>  
-<th>Tên</th>  
-<td>@Model.Name</td>  
-</tr>  
+        <tr>
+            <th>Longitude</th>
+            <td>@Model.Longitude</td>
+        </tr>
 
-<tr>  
-<th>Latitude</th>  
-<td>@Model.Latitude</td>  
-</tr>  
+        <tr>
+            <th>Radius</th>
+            <td>@Model.Radius</td>
+        </tr>
 
-<tr>  
-<th>Longitude</th>  
-<td>@Model.Longitude</td>  
-</tr>  
+        <tr>
+            <th>Description</th>
+            <td>@Model.Description</td>
+        </tr>
+        <tr>
+            <th>Ảnh</th>
+            <td>
+                @if (!string.IsNullOrEmpty(Model.ImageUrl))
+                {
+                    <img src="@Model.ImageUrl"
+                         style="width:200px;border-radius:10px" />
+                }
+            </td>
+        </tr>
+    </table>
 
-<tr>  
-<th>Radius</th>  
-<td>@Model.Radius</td>  
-</tr>  
+    <h4>Bản đồ vị trí quán mới</h4>
+    <div id="mapNew" style="height:350px;border:1px solid #ccc"></div>
 
-<tr>  
-<th>Description</th>  
-<td>@Model.Description</td>  
-</tr>  
+    <button class="btn btn-success" onclick="toggleCreateFood()">
+        Xem món ăn
+    </button>
 
-</table>  
+    <div id="foodCreate" style="display:none;margin-top:15px;">
 
-<h4>Bản đồ vị trí quán mới</h4>  
+        @if (foodRequests != null)
+        {
+            <h4>Món ăn</h4>
 
-<div id="mapNew" style="height:350px;border:1px solid #ccc"></div>  
+            <ul class="list-group">
+                @foreach (var f in foodRequests)
+                {
+                    <li class="list-group-item">
 
+                        <b>@f.Name</b> - @f.Price
+
+                        <br />
+
+                        @if (!string.IsNullOrEmpty(f.ImageUrl))
+                        {
+                            <img src="@f.ImageUrl"
+                                 style="width:120px;height:120px;object-fit:cover;margin-top:5px;border-radius:8px" />
+                        }
+
+                    </li>
+                }
+            </ul>
+        }
+
+    </div>
 }
 
+<!-- ===================== DELETE ===================== -->
 @if (Model.RequestType == PoiRequestType.Delete)
 {
+    <h3>Quán sẽ bị xóa</h3>
 
-<h3>Quán sẽ bị xóa</h3>  
+    <table class="table">
+        <tr>
+            <th>Tên</th>
+            <td>@oldPoi?.Name</td>
+        </tr>
 
-<table class="table">  
+        <tr>
+            <th>Latitude</th>
+            <td>@oldPoi?.Latitude</td>
+        </tr>
 
-<tr>  
-<th>Tên</th>  
-<td>@oldPoi?.Name</td>  
-</tr>  
+        <tr>
+            <th>Longitude</th>
+            <td>@oldPoi?.Longitude</td>
+        </tr>
 
-<tr>  
-<th>Latitude</th>  
-<td>@oldPoi?.Latitude</td>  
-</tr>  
+        <tr>
+            <th>Radius</th>
+            <td>@oldPoi?.Radius</td>
+        </tr>
 
-<tr>  
-<th>Longitude</th>  
-<td>@oldPoi?.Longitude</td>  
-</tr>  
+        <tr>
+            <th>Description</th>
+            <td>@oldPoi?.Description</td>
+        </tr>
+        <tr>
+            <th>Ảnh</th>
+            <td>
+                @if (!string.IsNullOrEmpty(oldPoi?.ImageUrl))
+                {
+                    <img src="@oldPoi.ImageUrl"
+                         style="width:200px;border-radius:10px" />
+                }
+            </td>
+        </tr>
+    </table>
 
-<tr>  
-<th>Radius</th>  
-<td>@oldPoi?.Radius</td>  
-</tr>  
+    <h4>Bản đồ quán sẽ bị xóa</h4>
+    <div id="mapOld" style="height:350px;border:1px solid #ccc"></div>
 
-<tr>  
-<th>Description</th>  
-<td>@oldPoi?.Description</td>  
-</tr>  
+    <button class="btn btn-danger" onclick="toggleDeleteFood()">
+        Xem món ăn
+    </button>
 
-</table>  
+    <div id="foodDelete" style="display:none;margin-top:15px;">
 
-<h4>Bản đồ quán sẽ bị xóa</h4>  
+        @if (oldPoi != null)
+        {
+            <h4>Món ăn</h4>
 
-<div id="mapOld" style="height:350px;border:1px solid #ccc"></div>  
+            <ul class="list-group">
+                @foreach (var f in oldPoi.Foods ?? new List<Food>())
+                {
+                    <li class="list-group-item">
 
+                        <b>@f.Name</b> - @f.Price
+
+                        <br />
+
+                        @if (!string.IsNullOrEmpty(f.ImageUrl))
+                        {
+                            <img src="@f.ImageUrl"
+                                 style="width:120px;height:120px;object-fit:cover;margin-top:5px;border-radius:8px" />
+                        }
+
+                    </li>
+                }
+            </ul>
+        }
+
+    </div>
 }
 
-<hr />  
+<hr />
 
 @if (User.IsInRole("Admin") && Model.Status.ToString().Contains("Pending"))
 {
+    <a class="btn btn-success"
+           asp-action="Approve"
+           asp-route-id="@Model.Id">
+        Duyệt
+    </a>
 
-<a class="btn btn-success"  
-asp-action="Approve"  
-asp-route-id="@Model.Id">
-Duyệt </a>
+    <form asp-action="Reject" method="post" style="margin-top:10px;">
+        <input type="hidden" name="id" value="@Model.Id" />
 
-<form asp-action="Reject" method="post" style="margin-top:10px;">  
+        <div class="form-group">
+            <label>Lý do từ chối</label>
 
-<input type="hidden" name="id" value="@Model.Id" />  
+            <input type="text"
+                   name="reason"
+                   class="form-control"
+                   placeholder="Nhập lý do từ chối...">
+        </div>
 
-<div class="form-group">  
-<label>Lý do từ chối</label>  
-
-<input type="text"  
-name="reason"  
-class="form-control"  
-placeholder="Nhập lý do từ chối...">
-
-</div>  
-
-<button type="submit" class="btn btn-danger">  
-Từ chối  
-</button>  
-
-</form>  
-
+        <button type="submit" class="btn btn-danger">
+            Từ chối
+        </button>
+    </form>
 }
 
-<br />  
+<br />
 
 <a class="btn btn-secondary"
-asp-action="@(User.IsInRole("Admin") ? "AdminRequests" : "Requests")">
-Quay lại </a>
+       asp-action="@(User.IsInRole("Admin") ? "AdminRequests" : "Requests")">
+    Quay lại
+</a>
 
-@section Scripts{
+@section Scripts {
 
-<script>  
+    <script>
 
-// ==========================  
-// MAP QUÁN HIỆN TẠI  
-// ==========================  
+        // ==========================
+        // MAP QUÁN HIỆN TẠI
+        // ==========================
 
-@if(oldPoi != null)  
-{  
-<text>  
+        @if (oldPoi != null)
+        {
+            <text>
 
-var oldLat = @oldPoi.Latitude;  
-var oldLng = @oldPoi.Longitude;  
-var oldRadius = @oldPoi.Radius;  
+                var oldLat = @oldPoi.Latitude;
+                var oldLng = @oldPoi.Longitude;
+                var oldRadius = @oldPoi.Radius;
 
-var mapOld = L.map('mapOld').setView([oldLat, oldLng], 15);  
+                var mapOld = L.map('mapOld').setView([oldLat, oldLng], 15);
 
-L.tileLayer(  
-'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'  
-).addTo(mapOld);  
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
+                .addTo(mapOld);
 
-L.marker([oldLat, oldLng])  
-.addTo(mapOld)  
-.bindPopup("Quán hiện tại")  
-.openPopup();  
+                L.marker([oldLat, oldLng])
+                .addTo(mapOld)
+                .bindPopup("Quán hiện tại")
+                .openPopup();
 
-L.circle([oldLat, oldLng],{  
-radius: oldRadius,  
-color:'blue',  
-fillOpacity:0.2  
-}).addTo(mapOld);  
+                L.circle([oldLat, oldLng],{
+                radius: oldRadius,
+                color:'blue',
+                fillOpacity:0.2
+                }).addTo(mapOld);
 
-</text>  
-}  
+            </text>
+        }
 
+        // ==========================
+        // MAP YÊU CẦU / QUÁN MỚI
+        // ==========================
 
-// ==========================  
-// MAP YÊU CẦU / QUÁN MỚI  
-// ==========================  
+        var newLat = @Model.Latitude;
+        var newLng = @Model.Longitude;
+        var newRadius = @Model.Radius;
 
-var newLat = @Model.Latitude;  
-var newLng = @Model.Longitude;  
-var newRadius = @Model.Radius;  
+        var mapNew = L.map('mapNew').setView([newLat, newLng], 15);
 
-var mapNew = L.map('mapNew').setView([newLat, newLng], 15);  
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png')
+        .addTo(mapNew);
 
-L.tileLayer(  
-'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'  
-).addTo(mapNew);  
+        L.marker([newLat, newLng])
+        .addTo(mapNew)
+        .bindPopup("Vị trí yêu cầu")
+        .openPopup();
 
-L.marker([newLat, newLng])  
-.addTo(mapNew)  
-.bindPopup("Vị trí yêu cầu")  
-.openPopup();  
+        L.circle([newLat, newLng],{
+        radius:newRadius,
+        color:'red',
+        fillOpacity:0.2
+        }).addTo(mapNew);
 
-L.circle([newLat, newLng],{  
-radius:newRadius,  
-color:'red',  
-fillOpacity:0.2  
-}).addTo(mapNew);  
+        // ==========================
+        // TOGGLE FOOD
+        // ==========================
 
-</script>  
+        function toggleOldFoods() {
+        var x = document.getElementById("oldFoods");
+        x.style.display = (x.style.display === "none" || x.style.display === "")
+        ? "block"
+        : "none";
+        }
 
+        function toggleNewFoods() {
+        var x = document.getElementById("newFoods");
+        x.style.display = (x.style.display === "none" || x.style.display === "")
+        ? "block"
+        : "none";
+        }
+
+        function toggleCreateFood() {
+        var x = document.getElementById("foodCreate");
+        x.style.display = (x.style.display === "none" || x.style.display === "")
+        ? "block"
+        : "none";
+        }
+
+        function toggleDeleteFood() {
+        var x = document.getElementById("foodDelete");
+        x.style.display = (x.style.display === "none" || x.style.display === "")
+        ? "block"
+        : "none";
+        }
+
+    </script>
 }
