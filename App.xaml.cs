@@ -31,19 +31,20 @@ namespace FoodStreetGuide
         {
             base.OnAppLinkRequestReceived(uri);
 
-            // Kiểm tra xem deep link có đúng định dạng: foodstreet://restaurant/{id} hay không
-            if (uri.Scheme.Equals("foodstreet", StringComparison.OrdinalIgnoreCase) && 
+            if (uri.Scheme.Equals("foodstreet", StringComparison.OrdinalIgnoreCase) &&
                 uri.Host.Equals("restaurant", StringComparison.OrdinalIgnoreCase))
             {
-                // Trích xuất ID từ đường dẫn (VD: url "/123" -> lấy "123")
                 var id = uri.AbsolutePath.Trim('/');
 
                 if (!string.IsNullOrEmpty(id))
                 {
-                    MainThread.BeginInvokeOnMainThread(async () =>
+                    MainThread.BeginInvokeOnMainThread(() =>
                     {
-                        // Open the restaurant in the default browser
-                        await Browser.Default.OpenAsync($"https://yourwebsite.com/Restaurant/Detail/{id}", BrowserLaunchMode.SystemPreferred);
+                        if (Application.Current.MainPage is AppShell shell &&
+                            shell.CurrentPage is MainPage mainPage)
+                        {
+                            mainPage.OpenRestaurantFromQr(id);
+                        }
                     });
                 }
             }

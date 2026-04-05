@@ -1,3 +1,4 @@
+using Android.Net;
 using FoodStreetGuide.Models;
 using FoodStreetGuide.Resources.Strings;
 using FoodStreetGuide.Services;
@@ -17,6 +18,7 @@ public partial class MainPage : ContentPage
 {
     private readonly LocationService _locationService = new();
     private readonly DatabaseService _database = new();
+    private readonly ApiService _apiService = new();
 
     private List<Poi> _poiList = new();
 
@@ -199,6 +201,23 @@ public partial class MainPage : ContentPage
         _isInitialized = true;
 
         TryShowPendingPoi();
+    }
+
+    public async void OpenRestaurantFromQr(string id)
+    {
+        var poi = await _apiService.GetPoiById(id);
+
+        if (poi == null) return;
+
+        DetailPanel.IsVisible = true;
+
+        TitleLabel.Text = poi.Name;
+        DetailDescription.Text = poi.Description;
+        DetailImage.Source = poi.ImageUrl;
+
+        var location = new Location(poi.Latitude, poi.Longitude);
+
+        MyMap.MoveToRegion(MapSpan.FromCenterAndRadius(location, Distance.FromKilometers(0.5)));
     }
 
     // 🔥 NEW: TEXT TO SPEECH HELPER

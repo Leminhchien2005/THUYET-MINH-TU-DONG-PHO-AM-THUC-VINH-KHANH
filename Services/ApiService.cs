@@ -47,4 +47,23 @@ public class ApiService
                 PropertyNameCaseInsensitive = true
             }) ?? new List<ApiPoiDto>();
     }
+
+    public async Task<Poi> GetPoiById(string id)
+    {
+        var url = $"http://192.168.1.19:5057/api/PoisApi/{id}"; 
+
+        using var client = new HttpClient();
+
+        var response = await client.GetAsync(url);
+
+        if (!response.IsSuccessStatusCode)
+            return null;
+
+        var json = await response.Content.ReadAsStringAsync();
+
+        return JsonSerializer.Deserialize<Poi>(json, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+    }
 }
