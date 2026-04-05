@@ -77,7 +77,11 @@
 
                 <td>
                     <a asp-action="Edit" asp-route-id="@item.Id">Sửa</a> |
-                    <a asp-action="Delete" asp-route-id="@item.Id">Xóa</a>
+                    <a asp-action="Delete" asp-route-id="@item.Id">Xóa</a> |
+                    <button class="btn btn-info btn-sm"
+                            onclick="openQr(@item.Id)">
+                        QR
+                    </button>
                 </td>
 
             </tr>
@@ -85,3 +89,55 @@
 
     </tbody>
 </table>
+
+<div id="qrModal" style="display:none;
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    background:rgba(0,0,0,0.6);z-index:9999;">
+
+    <div style="background:white;
+        width:300px;
+        margin:10% auto;
+        padding:20px;
+        border-radius:10px;
+        text-align:center;
+        position:relative;">
+
+        <span onclick="closeQr()"
+              style="position:absolute;right:10px;top:5px;
+        cursor:pointer;font-size:20px;">×</span>
+
+        <h4>QR Code</h4>
+
+        <img id="qrImage" src="" width="220" />
+
+        <br /><br />
+
+        <a id="downloadBtn" class="btn btn-success">
+            Tải xuống
+        </a>
+
+    </div>
+</div>
+<script>
+    function openQr(id) {
+        let img = document.getElementById("qrImage");
+
+        img.src = '/Pois/GenerateQr?id=' + id + '&t=' + new Date().getTime();
+
+        document.getElementById("downloadBtn").href =
+            '/Pois/DownloadQr?id=' + id;
+
+        document.getElementById("qrModal").style.display = "block";
+    }
+
+    function closeQr() {
+        document.getElementById("qrModal").style.display = "none";
+    }
+
+    window.onclick = function (event) {
+        let modal = document.getElementById("qrModal");
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+</script>

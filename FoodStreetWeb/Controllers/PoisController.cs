@@ -4,6 +4,9 @@ using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using FoodStreetWeb.Data;
 using FoodStreetWeb.Models;
+using QRCoder;
+using System.Drawing;
+using System.Drawing.Imaging;
 
 namespace FoodStreetWeb.Controllers
 {
@@ -907,6 +910,42 @@ namespace FoodStreetWeb.Controllers
             await file.CopyToAsync(stream);
 
             return "/images/" + fileName;
+        }
+
+        public IActionResult GenerateQr(int id)
+        {
+            //var baseUrl = $"{Request.Scheme}://{Request.Host}";
+            var baseUrl = "http://192.168.1.19:5057";
+
+            var url = $"{baseUrl}/restaurant/{id}";
+
+            using (QRCodeGenerator qrGenerator = new QRCodeGenerator())
+            {
+                var qrData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q);
+
+                var qrCode = new PngByteQRCode(qrData);
+                byte[] qrBytes = qrCode.GetGraphic(25);
+
+                return File(qrBytes, "image/png");
+            }
+        }
+
+        public IActionResult DownloadQr(int id)
+        {
+            //var baseUrl = $"{Request.Scheme}://{Request.Host}";
+            var baseUrl = "http://192.168.1.19:5057";
+
+            var url = $"{baseUrl}/restaurant/{id}";
+
+            using (QRCodeGenerator qrGenerator = new QRCodeGenerator())
+            {
+                var qrData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q);
+
+                var qrCode = new PngByteQRCode(qrData);
+                byte[] qrBytes = qrCode.GetGraphic(25);
+
+                return File(qrBytes, "image/png", $"QR_{id}.png");
+            }
         }
 
     }
