@@ -314,11 +314,6 @@ public partial class MainPage : ContentPage
             // =========================
             // CLEAR DATABASE
             // =========================
-            await _database.DeleteAllPoiAsync();
-            await _database.DeleteAllFoodAsync();
-            await _database.DeleteAllFoodTranslationAsync();
-            await _database.DeleteAllPoiTranslationAsync();
-
             var poiEntities = new List<Poi>();
             var foodEntities = new List<Food>();
             var foodTransEntities = new List<FoodTranslation>();
@@ -386,11 +381,20 @@ public partial class MainPage : ContentPage
                 }
             }
 
+            await _database.RunInTransactionAsync(conn =>
+            {
+                conn.DeleteAll<Poi>();
+                conn.DeleteAll<Food>();
+                conn.DeleteAll<FoodTranslation>();
+                conn.DeleteAll<PoiTranslation>();
+
+                conn.InsertAll(poiEntities);
+                conn.InsertAll(foodEntities);
+                conn.InsertAll(foodTransEntities);
+                conn.InsertAll(poiTransEntities);
+            });
+
             // ================= BULK INSERT =================
-            await _database.AddPoisAsync(poiEntities);
-            await _database.AddFoodsAsync(foodEntities);
-            await _database.AddPoiTranslationsAsync(poiTransEntities);
-            await _database.AddFoodTranslationsAsync(foodTransEntities);
 
             var sqliteList = await _database.GetAllPoiAsync();
 
