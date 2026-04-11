@@ -32,9 +32,19 @@ public partial class MainPage : ContentPage
     CancellationTokenSource? _speechCts;
     bool _isAutoSpeakEnabled = true;
 
+    private Location SmoothLocation(Location newLoc)
+    {
+        if (_lastLocation == null) return newLoc;
+
+        double lat = (_lastLocation.Latitude * 0.7) + (newLoc.Latitude * 0.3);
+        double lon = (_lastLocation.Longitude * 0.7) + (newLoc.Longitude * 0.3);
+
+        return new Location(lat, lon);
+    }
+
     // 🔥 NEW: AUTO SPEAK
     private HashSet<int> _spokenPoiIds = new();
-    const double TRIGGER_DISTANCE_KM = 0.1; // 100m
+    const double TRIGGER_DISTANCE_KM = 0.15;
     private List<int> _lastNearbyPoiIds = new();
     private DateTime _lastSpeakTime = DateTime.MinValue;
 
@@ -209,6 +219,8 @@ public partial class MainPage : ContentPage
 
         if (poi == null) return;
 
+        string textToRead = !string.IsNullOrWhiteSpace(poi.Description) ? poi.Description : poi.Name;
+
         DetailPanel.IsVisible = true;
 
         TitleLabel.Text = poi.Name;
@@ -218,6 +230,8 @@ public partial class MainPage : ContentPage
         var location = new Location(poi.Latitude, poi.Longitude);
 
         MyMap.MoveToRegion(MapSpan.FromCenterAndRadius(location, Distance.FromKilometers(0.5)));
+
+        _ = SpeakAsync(textToRead);
     }
 
     // 🔥 NEW: TEXT TO SPEECH HELPER
@@ -292,11 +306,6 @@ public partial class MainPage : ContentPage
             // =========================
             // CLEAR DATABASE
             // =========================
-            await _database.DeleteAllPoiAsync();
-            await _database.DeleteAllFoodAsync();
-            await _database.DeleteAllFoodTranslationAsync();
-            await _database.DeleteAllPoiTranslationAsync();
-
             var poiEntities = new List<Poi>();
             var foodEntities = new List<Food>();
             var foodTransEntities = new List<FoodTranslation>();
@@ -364,11 +373,20 @@ public partial class MainPage : ContentPage
                 }
             }
 
+            await _database.RunInTransactionAsync(conn =>
+            {
+                conn.DeleteAll<Poi>();
+                conn.DeleteAll<Food>();
+                conn.DeleteAll<FoodTranslation>();
+                conn.DeleteAll<PoiTranslation>();
+
+                conn.InsertAll(poiEntities);
+                conn.InsertAll(foodEntities);
+                conn.InsertAll(foodTransEntities);
+                conn.InsertAll(poiTransEntities);
+            });
+
             // ================= BULK INSERT =================
-            await _database.AddPoisAsync(poiEntities);
-            await _database.AddFoodsAsync(foodEntities);
-            await _database.AddPoiTranslationsAsync(poiTransEntities);
-            await _database.AddFoodTranslationsAsync(foodTransEntities);
 
             var sqliteList = await _database.GetAllPoiAsync();
 
@@ -433,8 +451,8 @@ public partial class MainPage : ContentPage
             // Bắt sự kiện khi chạm vào Pin trên bản đồ
             pin.MarkerClicked += (s, e) =>
             {
-                // Ẩn bảng thông tin mặc định của bản đồ (nếu muốn tự dùng UI của mình)
-                e.HideInfoWindow = true;
+                // 🔥 HIỂN THỊ TÊN QUÁN ĂN TRÊN MAP
+                e.HideInfoWindow = false;
 
                 // Hiển thị panel chi tiết phía dưới
                 ShowPoiDetails(poi);
@@ -457,6 +475,11 @@ public partial class MainPage : ContentPage
         if (location == null)
             return;
 
+        location = SmoothLocation(location);
+
+        if (location == null)
+            return;
+
         double moveDistance = 0;
 
         if (_lastLocation != null)
@@ -468,9 +491,14 @@ public partial class MainPage : ContentPage
             ) * 1000;
         }
 
-        if (moveDistance < 5)
+        if (_lastLocation != null)
         {
-            return;
+            var distance = Location.CalculateDistance(_lastLocation, location, DistanceUnits.Kilometers);
+
+            if (distance > 0.2)
+                return;
+
+            moveDistance = distance * 1000;
         }
 
         // 🔥 nếu user di chuyển xa lại → bật lại auto speak
@@ -498,6 +526,8 @@ public partial class MainPage : ContentPage
                 poi.Latitude,
                 poi.Longitude);
         }
+
+        RefreshLists(SearchEntry?.Text);
 
         // =======================
         // LẤY POI GẦN
@@ -554,6 +584,8 @@ public partial class MainPage : ContentPage
             _poiList = _poiList
                 .OrderBy(p => p.DistanceKm)
                 .ToList();
+
+            RefreshLists(SearchEntry?.Text);
         }
 
         if (moveDistance > 10)
@@ -592,6 +624,16 @@ public partial class MainPage : ContentPage
     {
         _selectedPoi = poi;
 
+        // 🔥 CẬP NHẬT KHOẢNG CÁCH TRƯỚC KHI HIỂN THỊ
+        if (_lastLocation != null)
+        {
+            poi.DistanceKm = DistanceHelper.CalculateDistanceKm(
+                _lastLocation.Latitude,
+                _lastLocation.Longitude,
+                poi.Latitude,
+                poi.Longitude);
+        }
+
         var location = new Location(poi.Latitude, poi.Longitude);
 
         MyMap.MoveToRegion(
@@ -621,6 +663,23 @@ public partial class MainPage : ContentPage
         if (!string.IsNullOrEmpty(poi.ImageUrl))
             DetailImage.Source = poi.ImageUrl;
 
+        // 🔥 LOAD FOOD LIST
+        LoadFoodList(poi.Id);
+    }
+
+    // 🔥 LOAD FOOD LIST CỦA POI
+    private async void LoadFoodList(int poiId)
+    {
+        try
+        {
+            var foods = await _database.GetFoodsByPoiIdAsync(poiId);
+            DetailFoodList.ItemsSource = foods ?? new List<Food>();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"Error loading foods: {ex.Message}");
+            DetailFoodList.ItemsSource = new List<Food>();
+        }
     }
 
     void ClearSelection_Click(object sender, EventArgs e)
@@ -928,7 +987,7 @@ public partial class MainPage : ContentPage
         }
 
         var allItems = query.ToList();
-        var nearbyItems = allItems.Where(p => p.DistanceKm <= 5).ToList();
+        var nearbyItems = allItems.Where(p => p.DistanceKm <= 7).ToList();
 
         NearbyPoiList.ItemsSource = nearbyItems;
         AllPoiList.ItemsSource = allItems;

@@ -16,21 +16,77 @@ namespace FoodStreetWeb.Controllers
             _context = context;
         }
 
+        // =========================
         // GET: api/PoisApi
+        // =========================
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Poi>>> GetPois()
+        public async Task<ActionResult<IEnumerable<object>>> GetPois()
         {
-            return await _context.Pois
+            var pois = await _context.Pois
                 .Where(p => p.Status == PoiStatus.Approved)
                 .Include(p => p.Translations)
                 .Include(p => p.Foods)
                     .ThenInclude(f => f.Translations)
                 .ToListAsync();
+
+            var result = pois.Select(poi => new
+            {
+                poi.Id,
+                poi.Name,
+                poi.Latitude,
+                poi.Longitude,
+                poi.Radius,
+                poi.Description,
+
+                ImageUrl = string.IsNullOrEmpty(poi.ImageUrl)
+                    ? ""
+                    : $"{Request.Scheme}://{Request.Host}{poi.ImageUrl}",
+
+                poi.OwnerId,
+                poi.Status,
+                poi.DistanceKm,
+
+                Foods = poi.Foods.Select(food => new
+                {
+                    food.Id,
+                    food.Name,
+                    food.Price,
+                    food.Description,
+
+                    ImageUrl = string.IsNullOrEmpty(food.ImageUrl)
+                        ? ""
+                        : $"{Request.Scheme}://{Request.Host}{food.ImageUrl}",
+
+                    food.PoiId,
+
+                    Translations = food.Translations.Select(t => new
+                    {
+                        t.Id,
+                        t.FoodId,
+                        t.LanguageCode,
+                        t.Name,
+                        t.Description
+                    })
+                }),
+
+                Translations = poi.Translations.Select(t => new
+                {
+                    t.Id,
+                    t.PoiId,
+                    t.LanguageCode,
+                    t.Name,
+                    t.Description
+                })
+            });
+
+            return Ok(result);
         }
 
+        // =========================
         // GET: api/PoisApi/5
+        // =========================
         [HttpGet("{id}")]
-        public async Task<ActionResult<Poi>> GetPoi(int id)
+        public async Task<ActionResult<object>> GetPoi(int id)
         {
             var poi = await _context.Pois
                 .Where(p => p.Status == PoiStatus.Approved)
@@ -44,7 +100,57 @@ namespace FoodStreetWeb.Controllers
                 return NotFound();
             }
 
-            return poi;
+            var result = new
+            {
+                poi.Id,
+                poi.Name,
+                poi.Latitude,
+                poi.Longitude,
+                poi.Radius,
+                poi.Description,
+
+                ImageUrl = string.IsNullOrEmpty(poi.ImageUrl)
+                    ? ""
+                    : $"{Request.Scheme}://{Request.Host}{poi.ImageUrl}",
+
+                poi.OwnerId,
+                poi.Status,
+                poi.DistanceKm,
+
+                Foods = poi.Foods.Select(food => new
+                {
+                    food.Id,
+                    food.Name,
+                    food.Price,
+                    food.Description,
+
+                    ImageUrl = string.IsNullOrEmpty(food.ImageUrl)
+                        ? ""
+                        : $"{Request.Scheme}://{Request.Host}{food.ImageUrl}",
+
+                    food.PoiId,
+
+                    Translations = food.Translations.Select(t => new
+                    {
+                        t.Id,
+                        t.FoodId,
+                        t.LanguageCode,
+                        t.Name,
+                        t.Description
+                    })
+                }),
+
+                Translations = poi.Translations.Select(t => new
+                {
+                    t.Id,
+                    t.PoiId,
+                    t.LanguageCode,
+                    t.Name,
+                    t.Description
+                })
+            };
+
+            return Ok(result);
         }
     }
 }

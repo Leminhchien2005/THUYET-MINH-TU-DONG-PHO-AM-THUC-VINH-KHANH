@@ -295,7 +295,7 @@ namespace FoodStreetWeb.Controllers
                     OwnerId = userId,
                     Name = model.Name,
                     Latitude = model.Latitude,
-                    Longitude = model.Longitude,
+                    Longitude = model.Longitude,    
                     Radius = model.Radius,
                     Description = model.Description,
                     ImageUrl = imageUrl,
@@ -307,11 +307,16 @@ namespace FoodStreetWeb.Controllers
                 await _context.SaveChangesAsync();
 
                 // 2. Lưu FoodRequest
-                if (model.Foods != null && model.Foods.Count > 0)
+                if (model.Foods != null && model.Foods.Any())
                 {
                     foreach (var food in model.Foods)
                     {
-                        var foodImage = await SaveImage(food.ImageFile);
+                        if (string.IsNullOrWhiteSpace(food.Name))
+                            continue;
+
+                        var foodImage = food.ImageFile != null
+                            ? await SaveImage(food.ImageFile)
+                            : food.ImageUrl;
 
                         var foodRequest = new FoodRequest
                         {
@@ -399,35 +404,44 @@ namespace FoodStreetWeb.Controllers
                 {
                     poi.ImageUrl = await SaveImage(model.ImageFile);
                 }
-
                 // ===== update FOODS =====
-                foreach (var food in model.Foods)
+                if (model.Foods != null && model.Foods.Any())
                 {
-                    if (food.Id > 0)
+                    // đảm bảo poi.Foods không null
+                    if (poi.Foods == null)
                     {
-                        var existing = poi.Foods.FirstOrDefault(f => f.Id == food.Id);
+                        poi.Foods = new List<Food>();
+                    }
 
-                        if (existing != null)
+                    foreach (var food in model.Foods)
+                    {
+                        if (food.Id > 0)
                         {
-                            existing.Name = food.Name;
-                            existing.Price = food.Price;
-                            existing.Description = food.Description;
-                            if (food.ImageFile != null)
+                            var existing = poi.Foods.FirstOrDefault(f => f.Id == food.Id);
+
+                            if (existing != null)
                             {
-                                existing.ImageUrl = await SaveImage(food.ImageFile);
+                                existing.Name = food.Name;
+                                existing.Price = food.Price;
+                                existing.Description = food.Description;
+
+                                if (food.ImageFile != null)
+                                {
+                                    existing.ImageUrl = await SaveImage(food.ImageFile);
+                                }
                             }
                         }
-                    }
-                    else
-                    {
-                        poi.Foods.Add(new Food
+                        else
                         {
-                            Name = food.Name,
-                            Price = food.Price,
-                            Description = food.Description,
-                            ImageUrl = food.ImageUrl,
-                            PoiId = poi.Id
-                        });
+                            poi.Foods.Add(new Food
+                            {
+                                Name = food.Name,
+                                Price = food.Price,
+                                Description = food.Description,
+                                ImageUrl = food.ImageUrl,
+                                PoiId = poi.Id
+                            });
+                        }
                     }
                 }
 
@@ -463,7 +477,12 @@ namespace FoodStreetWeb.Controllers
                     }
                     else
                     {
-                        trans.Description = await _translator.Translate(poi.Description ?? "", "vi", lang);
+                        var translated = await _translator.Translate(poi.Description ?? "", "vi", lang);
+
+                        if (!string.IsNullOrWhiteSpace(translated))
+                        {
+                            trans.Description = translated;
+                        }
                     }
                 }
 
@@ -497,8 +516,14 @@ namespace FoodStreetWeb.Controllers
                         }
                         else
                         {
-                            trans.Name = await _translator.Translate(food.Name, "vi", lang);
-                            trans.Description = await _translator.Translate(food.Description ?? "", "vi", lang);
+                            var name = await _translator.Translate(food.Name, "vi", lang);
+                            var desc = await _translator.Translate(food.Description ?? "", "vi", lang);
+
+                            if (!string.IsNullOrWhiteSpace(name))
+                                trans.Name = name;
+
+                            if (!string.IsNullOrWhiteSpace(desc))
+                                trans.Description = desc;
                         }
                     }
                 }
@@ -816,7 +841,12 @@ namespace FoodStreetWeb.Controllers
                     }
                     else
                     {
-                        trans.Description = await _translator.Translate(poi.Description ?? "", "vi", lang);
+                        var translated = await _translator.Translate(poi.Description ?? "", "vi", lang);
+
+                        if (!string.IsNullOrWhiteSpace(translated))
+                        {
+                            trans.Description = translated;
+                        }
                     }
                 }
 
@@ -850,8 +880,14 @@ namespace FoodStreetWeb.Controllers
                         }
                         else
                         {
-                            trans.Name = await _translator.Translate(food.Name, "vi", lang);
-                            trans.Description = await _translator.Translate(food.Description ?? "", "vi", lang);
+                            var name = await _translator.Translate(food.Name, "vi", lang);
+                            var desc = await _translator.Translate(food.Description ?? "", "vi", lang);
+
+                            if (!string.IsNullOrWhiteSpace(name))
+                                trans.Name = name;
+
+                            if (!string.IsNullOrWhiteSpace(desc))
+                                trans.Description = desc;
                         }
                     }
                 }
@@ -914,8 +950,7 @@ namespace FoodStreetWeb.Controllers
 
         public IActionResult GenerateQr(int id)
         {
-            //var baseUrl = $"{Request.Scheme}://{Request.Host}";
-            var baseUrl = "http://192.168.1.19:5057";
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
 
             var url = $"{baseUrl}/restaurant/{id}";
 
@@ -932,8 +967,7 @@ namespace FoodStreetWeb.Controllers
 
         public IActionResult DownloadQr(int id)
         {
-            //var baseUrl = $"{Request.Scheme}://{Request.Host}";
-            var baseUrl = "http://192.168.1.19:5057";
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
 
             var url = $"{baseUrl}/restaurant/{id}";
 

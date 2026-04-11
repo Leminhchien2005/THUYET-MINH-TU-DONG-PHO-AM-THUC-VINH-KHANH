@@ -9,12 +9,10 @@ public class ApiService
 
     public ApiService()
     {
-        _httpClient = new HttpClient();
         _httpClient = new HttpClient
         {
-            //BaseAddress = new Uri("http://10.0.2.2:5057"),// may ao
-            BaseAddress = new Uri("http://192.168.1.19:5057"),// may that  
-            Timeout = TimeSpan.FromSeconds(3)
+            BaseAddress = new Uri("https://foodstreet-963381757160.asia-southeast1.run.app"),
+            Timeout = TimeSpan.FromSeconds(10) 
         };
     }
 
@@ -50,11 +48,7 @@ public class ApiService
 
     public async Task<Poi> GetPoiById(string id)
     {
-        var url = $"http://192.168.1.19:5057/api/PoisApi/{id}"; 
-
-        using var client = new HttpClient();
-
-        var response = await client.GetAsync(url);
+        var response = await _httpClient.GetAsync($"api/PoisApi/{id}");
 
         if (!response.IsSuccessStatusCode)
             return null;

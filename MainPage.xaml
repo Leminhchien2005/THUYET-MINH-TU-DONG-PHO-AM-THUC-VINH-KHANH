@@ -209,7 +209,7 @@
                     IsVisible="False"
                     Margin="0,5">
 
-                    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+                    <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
 
                         <Label
             Grid.Row="0"
@@ -264,6 +264,85 @@
             TextColor="Gray"
             LineBreakMode="TailTruncation"
             MaxLines="3"/>
+
+                        <!-- 🔹 ROW 4: FOOD LIST TITLE -->
+                        <Label
+                            Grid.Row="4"
+                            Text="Danh sách món ăn"
+                            FontSize="13"
+                            FontAttributes="Bold"
+                            TextColor="Black"
+                            Margin="0,10,0,5"/>
+
+                        <!-- 🔹 ROW 5: FOOD LIST -->
+                        <CollectionView
+                            Grid.Row="5"
+                            x:Name="DetailFoodList"
+                            HeightRequest="150"
+                            SelectionMode="None">
+
+                            <CollectionView.ItemsLayout>
+                                <LinearItemsLayout Orientation="Vertical" ItemSpacing="8"/>
+                            </CollectionView.ItemsLayout>
+
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border
+                                        Padding="8"
+                                        StrokeThickness="1"
+                                        Stroke="#E0E0E0"
+                                        StrokeShape="RoundRectangle 10"
+                                        BackgroundColor="#FAFAFA">
+
+                                        <Grid ColumnDefinitions="70,*" RowDefinitions="Auto,Auto">
+
+                                            <!-- FOOD IMAGE -->
+                                            <Image
+                                                Grid.Row="0"
+                                                Grid.RowSpan="2"
+                                                Source="{Binding ImageUrl}"
+                                                HeightRequest="70"
+                                                WidthRequest="70"
+                                                Aspect="AspectFill"/>
+
+                                            <!-- FOOD INFO -->
+                                            <VerticalStackLayout
+                                                Grid.Column="1"
+                                                Margin="10,0">
+
+                                                <!-- NAME + PRICE -->
+                                                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,3">
+                                                    <Label
+                                                        Grid.Column="0"
+                                                        Text="{Binding Name}"
+                                                        FontAttributes="Bold"
+                                                        FontSize="12"/>
+
+                                                    <Label
+                                                        Grid.Column="1"
+                                                        Text="{Binding Price, StringFormat='{0:N0}đ'}"
+                                                        TextColor="#FF6B6B"
+                                                        FontAttributes="Bold"
+                                                        FontSize="11"/>
+                                                </Grid>
+
+                                                <!-- DESCRIPTION -->
+                                                <Label
+                                                    Text="{Binding Description}"
+                                                    FontSize="11"
+                                                    TextColor="Gray"
+                                                    LineBreakMode="TailTruncation"
+                                                    MaxLines="1"/>
+
+                                            </VerticalStackLayout>
+
+                                        </Grid>
+
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+
+                        </CollectionView>
 
                     </Grid>
 
