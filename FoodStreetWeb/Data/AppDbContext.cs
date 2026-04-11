@@ -21,5 +21,7 @@ namespace FoodStreetWeb.Data
 
         public DbSet<PoiTranslation> PoiTranslations { get; set; }
         public DbSet<FoodTranslation> FoodTranslations { get; set; }
+
+        public DbSet<QRCodeEntity> QRCodes { get; set; }
     }
 }

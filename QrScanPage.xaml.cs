@@ -1,5 +1,6 @@
 ﻿using Camera.MAUI;
 using Camera.MAUI.ZXingHelper;
+using FoodStreetGuide.Services;
 using Microsoft.Maui.ApplicationModel;
 using System.Linq;
 using Xamarin.Google.ErrorProne.Annotations;
@@ -73,24 +74,17 @@ public partial class QrScanPage : ContentPage
             string webPrefix = "https://foodstreet.vn/restaurant/";
             string appPrefix = "foodstreet://restaurant/";
 
-            if (result.StartsWith(webPrefix, StringComparison.OrdinalIgnoreCase) ||
-                result.StartsWith(appPrefix, StringComparison.OrdinalIgnoreCase))
-            {
-                string restaurantId = result.Replace(webPrefix, "", StringComparison.OrdinalIgnoreCase)
-                                            .Replace(appPrefix, "", StringComparison.OrdinalIgnoreCase)
-                                            .TrimEnd('/');
+            var api = new ApiService();
+            var poiId = await api.RedeemQrAsync(result);
 
-                await Shell.Current.GoToAsync($"..?poiId={restaurantId}");
+            if (poiId != null)
+            {
+                await Shell.Current.GoToAsync($"..?poiId={poiId}");
                 return;
             }
             else
             {
-                await DisplayAlert("QR Code", result, "OK");
-
-                if (Uri.TryCreate(result, UriKind.Absolute, out var uri))
-                {
-                    await Launcher.OpenAsync(uri);
-                }
+                await DisplayAlert("QR", "QR không hợp lệ / đã dùng / hết hạn", "OK");
             }
 
             isScanning = false;

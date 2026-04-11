@@ -146,5 +146,21 @@ namespace FoodStreetGuide.Services
         {
             return await _database.Table<FoodTranslation>().ToListAsync();
         }
+
+        // 🔥 LẤY DANH SÁCH FOOD CỦA MỘT POI
+        public async Task<List<Food>> GetFoodsByPoiIdAsync(int poiId)
+        {
+            await Init();
+            return await _database.Table<Food>()
+                .Where(f => f.PoiId == poiId)
+                .ToListAsync();
+        }
+
+        public async Task RunInTransactionAsync(Action<SQLiteConnection> action)
+        {
+            await Init();
+
+            await _database!.RunInTransactionAsync(action);
+        }
     }
 }
