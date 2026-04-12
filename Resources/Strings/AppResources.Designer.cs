@@ -97,6 +97,15 @@ namespace FoodStreetGuide.Resources.Strings {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Danh sách món ăn.
+        /// </summary>
+        public static string FoodListTitle {
+            get {
+                return ResourceManager.GetString("FoodListTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Ngôn ngữ.
         /// </summary>
         public static string Language {

@@ -52,6 +52,7 @@ public partial class MainPage : ContentPage
     const double RESET_DISTANCE_KM = 0.15; // ra khỏi vùng thì reset
     const int SPEAK_COOLDOWN_SECONDS = 10; // tránh spam
     private DateTime _lastLocationCheck = DateTime.MinValue;
+    double _lastMinDistance = double.MaxValue;
 
     bool _suppressSearchUpdate;
     bool _isInitialized;
@@ -285,6 +286,11 @@ public partial class MainPage : ContentPage
         {
             Debug.WriteLine("TTS ERROR: " + ex.Message);
         }
+        finally
+        {
+            _speechCts?.Dispose();
+            _speechCts = null; // 🔥 FIX CHÍNH
+        }
     }
 
     // LẤY DỮ LIỆU API → SQLITE
@@ -303,10 +309,10 @@ public partial class MainPage : ContentPage
 
             foreach (var poi in pois)
             {
-                    foreach (var food in poi.Foods)
-                    {
-                        Debug.WriteLine($"FOOD: {food.Name} - {food.Description} - {food.ImageUrl}");
-                    }
+                foreach (var food in poi.Foods)
+                {
+                    Debug.WriteLine($"FOOD: {food.Name} - {food.Description} - {food.ImageUrl}");
+                }
             }
 
             Debug.WriteLine("API COUNT: " + pois.Count);
@@ -548,23 +554,39 @@ public partial class MainPage : ContentPage
             .ThenBy(p => p.Id)
             .ToList();
 
+        // 🔥 CHỐNG NHẢY DISTANCE (tránh spam đọc)
+        if (nearbyPois.Count > 0)
+        {
+            var minDistance = nearbyPois.First().DistanceKm;
+
+            if (Math.Abs(minDistance - _lastMinDistance) < 0.02)
+                return; // thay đổi quá nhỏ → bỏ qua lần check này
+
+            _lastMinDistance = minDistance;
+        }
+
         var currentIds = nearbyPois.Select(p => p.Id).ToList();
 
-        // =======================
-        // CHECK THAY ĐỔI VÙNG
-        // =======================
-        bool isDifferent = !_lastNearbyPoiIds.SequenceEqual(currentIds);
+        // ✅ CHỈ check POI MỚI (không phải reorder)
+        bool hasNewPoi = currentIds.Except(_lastNearbyPoiIds).Any();
 
         // =======================
         // CHECK COOLDOWN
         // =======================
         bool canSpeak = (DateTime.Now - _lastSpeakTime).TotalSeconds >
             (isStandingStill ? 30 : SPEAK_COOLDOWN_SECONDS);
+
         // =======================
         // SPEAK
         // =======================
-        if (_isAutoSpeakEnabled && nearbyPois.Count > 0 && (isDifferent || canSpeak))
+        if (_isAutoSpeakEnabled && nearbyPois.Count > 0 && hasNewPoi && canSpeak)
         {
+            // ✅ đang đọc thì bỏ qua
+            if (_speechCts != null && !_speechCts.IsCancellationRequested)
+            {
+                _speechCts.Cancel(); // 🔥 thêm dòng này
+            }
+
             string text = BuildSpeakText(nearbyPois);
 
             if (!string.IsNullOrEmpty(text))
@@ -681,7 +703,13 @@ public partial class MainPage : ContentPage
         try
         {
             var foods = await _database.GetFoodsByPoiIdAsync(poiId);
-            DetailFoodList.ItemsSource = foods ?? new List<Food>();
+            var foodTrans = await _database.GetAllFoodTranslationAsync();
+
+            var localizedFoods = foods
+                .Select(f => LocalizeFood(f, foodTrans))
+                .ToList();
+
+            DetailFoodList.ItemsSource = localizedFoods;
         }
         catch (Exception ex)
         {
@@ -995,7 +1023,9 @@ public partial class MainPage : ContentPage
         }
 
         var allItems = query.ToList();
-        var nearbyItems = allItems.Where(p => p.DistanceKm <= 7).ToList();
+        var nearbyItems = allItems
+            .Where(p => p.DistanceKm <= (p.Radius / 1000.0))
+            .ToList();
 
         NearbyPoiList.ItemsSource = nearbyItems;
         AllPoiList.ItemsSource = allItems;
@@ -1274,5 +1304,21 @@ public partial class MainPage : ContentPage
     void EnableAutoSpeak()
     {
         _isAutoSpeakEnabled = true;
+    }
+
+    private Food LocalizeFood(Food food, List<FoodTranslation> trans)
+    {
+        var t = trans.FirstOrDefault(x =>
+                    x.FoodId == food.Id && x.LanguageCode == CurrentLang)
+                ?? trans.FirstOrDefault(x =>
+                    x.FoodId == food.Id && x.LanguageCode == "vi");
+
+        if (t != null)
+        {
+            food.Name = t.Name;
+            food.Description = t.Description;
+        }
+
+        return food;
     }
 }

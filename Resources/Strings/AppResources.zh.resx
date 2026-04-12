@@ -155,4 +155,8 @@
 	<data name="TtsError">
 		<value>无法播放音频: </value>
 	</data>
+
+	<data name="FoodListTitle">
+		<value>菜单</value>
+	</data>
 </root>

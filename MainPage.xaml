@@ -268,7 +268,7 @@
                         <!-- 🔹 ROW 4: FOOD LIST TITLE -->
                         <Label
                             Grid.Row="4"
-                            Text="Danh sách món ăn"
+                            Text="{x:Static res:AppResources.FoodListTitle}"
                             FontSize="13"
                             FontAttributes="Bold"
                             TextColor="Black"
@@ -402,7 +402,7 @@
                                             LineBreakMode="TailTruncation"/>
 
                                         <Label
-                                            Text="{Binding DistanceKm, StringFormat='Khoảng cách {0:F2} km'}"
+                                            Text="{Binding DistanceKm, StringFormat={x:Static res:AppResources.DistanceFormat}}"
                                             TextColor="#007AFF"
                                             FontSize="12"/>
 
@@ -472,7 +472,7 @@
                                             LineBreakMode="TailTruncation"/>
 
                                         <Label
-                                            Text="{Binding DistanceKm, StringFormat='Khoảng cách {0:F2} km'}"
+                                            Text="{Binding DistanceKm, StringFormat={x:Static res:AppResources.DistanceFormat}}"
                                             TextColor="#007AFF"
                                             FontSize="12"/>
 

@@ -76,4 +76,8 @@
 		<value>Cannot play audio: </value>
 	</data>
 
+	<data name="FoodListTitle">
+		<value>Food list</value>
+	</data>
+
 </root>

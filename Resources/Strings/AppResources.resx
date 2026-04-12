@@ -76,4 +76,8 @@
 		<value>Không thể phát âm thanh: </value>
 	</data>
 
+	<data name="FoodListTitle">
+		<value>Danh sách món ăn</value>
+	</data>
+
 </root>
