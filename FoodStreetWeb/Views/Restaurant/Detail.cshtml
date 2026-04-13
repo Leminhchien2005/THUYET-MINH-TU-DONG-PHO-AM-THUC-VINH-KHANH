@@ -1,51 +1,119 @@
-﻿@model FoodStreetWeb.Models.Poi
-@{
-    ViewData["Title"] = Model.Name;
-}
+﻿@using System.Globalization
+@model FoodStreetWeb.Models.Poi
 
 <div class="container mt-5">
     <div class="row">
-        
-        <!-- Ảnh -->
-        <div class="col-md-6 mb-4">
-            <img src="@Model.ImageUrl"
-                 alt="@Model.Name"
-                 class="img-fluid rounded shadow"
-                 style="width: 100%; height: 400px; object-fit: cover;"
-                 onerror="this.src='https://images.unsplash.com/photo-1504674900247-0877df9cc836';">
+        <!-- Cột ảnh -->
+        <div class="col-md-6">
+            <img src="@Model.ImageUrl" class="img-fluid rounded shadow" style="height: 400px; object-fit: cover;" />
         </div>
 
-        <!-- Info -->
+        <!-- Cột thông tin quán -->
         <div class="col-md-6">
-            <h1 class="fw-bold">@Model.Name</h1>
-
-            <!-- Rating + Price -->
-            <div class="mb-2">
-                ⭐ 4.5 | 💰 50k - 150k
-            </div>
-
-            <!-- Địa chỉ -->
-            <p class="text-muted">
-                📍 Latitude: @Model.Latitude, Longitude: @Model.Longitude
-            </p>
-
+            <h1 class="fw-bold">@ViewBag.PoiName</h1>
+            <div class="mb-2">⭐ 4.5 | 💰 50k - 150k</div>
+            <p class="text-muted">📍 Latitude: @Model.Latitude, Longitude: @Model.Longitude</p>
             <hr />
+            <h5>Giới thiệu
 
-            <h5>Giới thiệu</h5>
-            <p>@Model.Description</p>
+                <button class="btn btn-sm btn-outline-secondary ms-2" id="speakButton">
+                    🔊 Phát thanh
+                </button>
 
-            <!-- Buttons -->
-            <div class="d-flex gap-3 mt-4">
-                <a href="/restaurant/@Model.Id"
-                   class="btn btn-primary">
-                    📱 Mở bằng ứng dụng
-                </a>
-
-                <a href="/menu/@Model.Id"
-                   class="btn btn-outline-secondary">
-                    🍽️ Xem menu
-                </a>
-            </div>
+            </h5>
+            <p id="poiDescription">@ViewBag.PoiDescription</p>
         </div>
     </div>
+    @if (ViewBag.Foods != null)
+    {
+        <div class="row mt-5">
+            <h3 class="mb-3">Menu</h3>
+            @foreach (var food in ViewBag.Foods)
+            {
+                <div class="col-md-4 mb-3">
+                    <div class="card h-100">
+                        <img src="@food.ImageUrl" class="card-img-top" style="height: 150px; object-fit: cover;" />
+                        <div class="card-body">
+                            <h5 class="card-title">@food.TranslatedName</h5>
+                            <p class="card-text">@food.TranslatedDescription</p>
+                            <p class="fw-bold">@food.Price.ToString("C")</p>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
 </div>
+
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var toggleButton = document.getElementById('speakButton');
+        var descriptionElement = document.getElementById('poiDescription');
+        
+        if (!toggleButton || !descriptionElement) {
+            console.error('Không tìm thấy phần tử cần thiết');
+            return;
+        }
+
+        var textToSpeak = descriptionElement.innerText;
+        var langCode = '@ViewBag.CurrentLang'; // "vi", "en", "zh"
+        var isPlaying = false;
+        var currentUtterance = null;
+
+        // Hàm dừng phát
+        function stopSpeaking() {
+            if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+                window.speechSynthesis.cancel();
+            }
+            isPlaying = false;
+            toggleButton.innerHTML = '🔊 Phát thanh';
+            toggleButton.classList.remove('btn-danger');
+            toggleButton.classList.add('btn-outline-secondary');
+        }
+
+        // Hàm phát
+        function speakText() {
+            if (!textToSpeak) {
+                alert('Không có nội dung để đọc!');
+                return;
+            }
+            // Dừng bất kỳ phát âm nào đang diễn ra
+            window.speechSynthesis.cancel();
+            currentUtterance = new SpeechSynthesisUtterance(textToSpeak);
+            switch (langCode) {
+                case 'vi': currentUtterance.lang = 'vi-VN'; break;
+                case 'en': currentUtterance.lang = 'en-US'; break;
+                case 'zh': currentUtterance.lang = 'zh-CN'; break;
+                default: currentUtterance.lang = 'vi-VN';
+            }
+            // Khi kết thúc phát (tự nhiên), cập nhật lại nút
+            currentUtterance.onend = function() {
+                isPlaying = false;
+                toggleButton.innerHTML = '🔊 Phát thanh';
+                toggleButton.classList.remove('btn-danger');
+                toggleButton.classList.add('btn-outline-secondary');
+            };
+            currentUtterance.onerror = function() {
+                isPlaying = false;
+                toggleButton.innerHTML = '🔊 Phát thanh';
+                toggleButton.classList.remove('btn-danger');
+                toggleButton.classList.add('btn-outline-secondary');
+            };
+            window.speechSynthesis.speak(currentUtterance);
+            isPlaying = true;
+            toggleButton.innerHTML = '⏹️ Dừng';
+            toggleButton.classList.remove('btn-outline-secondary');
+            toggleButton.classList.add('btn-danger');
+        }
+
+        // Sự kiện click cho nút toggle
+        toggleButton.addEventListener('click', function() {
+            if (isPlaying) {
+                stopSpeaking();
+            } else {
+                speakText();
+            }
+        });
+    });
+</script>

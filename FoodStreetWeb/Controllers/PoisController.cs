@@ -1,12 +1,13 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Authorization;
-using System.Security.Claims;
-using FoodStreetWeb.Data;
+﻿using FoodStreetWeb.Data;
 using FoodStreetWeb.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using QRCoder;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Globalization;
+using System.Security.Claims;
 
 namespace FoodStreetWeb.Controllers
 {
@@ -237,25 +238,45 @@ namespace FoodStreetWeb.Controllers
         // =========================
         public async Task<IActionResult> Details(int id)
         {
+            // Lấy mã ngôn ngữ 2 ký tự từ culture hiện tại (vi, en, zh)
+            var langCode = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+
+            // Load Poi kèm translations và foods kèm translations
             var poi = await _context.Pois
+                .Include(p => p.Translations)
+                .Include(p => p.Foods)
+                    .ThenInclude(f => f.Translations)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
-            if (poi == null)
-                return NotFound();
+            if (poi == null) return NotFound();
 
-            // Lấy thông tin chủ quán
-            var owner = await _context.Users
-                .FirstOrDefaultAsync(u => u.Id == poi.OwnerId);
+            // Lấy bản dịch cho Poi
+            var poiTrans = poi.Translations.FirstOrDefault(t => t.LanguageCode == langCode)
+                           ?? poi.Translations.FirstOrDefault(t => t.LanguageCode == "vi"); // fallback
+            ViewBag.PoiName = poiTrans?.Name ?? poi.Name;
+            ViewBag.PoiDesc = poiTrans?.Description ?? poi.Description;
 
+            // Owner info
+            var owner = await _context.Users.FirstOrDefaultAsync(u => u.Id == poi.OwnerId);
             ViewBag.OwnerName = owner?.FullName;
             ViewBag.OwnerEmail = owner?.Email;
             ViewBag.OwnerPhone = owner?.PhoneNumber;
 
-            var foods = await _context.Foods
-                .Where(f => f.PoiId == id)
-                .ToListAsync();
+            // Xử lý danh sách món ăn đã dịch
+            var foodsWithTranslation = poi.Foods.Select(f => new
+            {
+                f.Id,
+                f.Price,
+                f.ImageUrl,
+                TranslatedName = f.Translations.FirstOrDefault(t => t.LanguageCode == langCode)?.Name
+                                 ?? f.Translations.FirstOrDefault(t => t.LanguageCode == "vi")?.Name
+                                 ?? f.Name,
+                TranslatedDesc = f.Translations.FirstOrDefault(t => t.LanguageCode == langCode)?.Description
+                                 ?? f.Translations.FirstOrDefault(t => t.LanguageCode == "vi")?.Description
+                                 ?? f.Description
+            }).ToList();
 
-            ViewBag.Foods = foods;
+            ViewBag.Foods = foodsWithTranslation;
 
             return View(poi);
         }
