@@ -29,7 +29,7 @@ namespace FoodStreetWeb.Models
 
         public string? Description { get; set; }
 
-        public string? ImageUrl { get; set; }
+        public string ImageUrl { get; set; } = "/images/default.png";
 
         // =========================
         // CHỦ NHÀ HÀNG
@@ -43,6 +43,8 @@ namespace FoodStreetWeb.Models
         // TRẠNG THÁI DUYỆT
         // =========================
         public PoiStatus Status { get; set; } = PoiStatus.PendingCreate;
+
+        public int Priority { get; set; } = 1;
 
         // không lưu DB
         [NotMapped]

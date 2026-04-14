@@ -263,18 +263,21 @@ namespace FoodStreetWeb.Controllers
             ViewBag.OwnerPhone = owner?.PhoneNumber;
 
             // Xử lý danh sách món ăn đã dịch
-            var foodsWithTranslation = poi.Foods.Select(f => new
-            {
-                f.Id,
-                f.Price,
-                f.ImageUrl,
-                TranslatedName = f.Translations.FirstOrDefault(t => t.LanguageCode == langCode)?.Name
-                                 ?? f.Translations.FirstOrDefault(t => t.LanguageCode == "vi")?.Name
-                                 ?? f.Name,
-                TranslatedDesc = f.Translations.FirstOrDefault(t => t.LanguageCode == langCode)?.Description
-                                 ?? f.Translations.FirstOrDefault(t => t.LanguageCode == "vi")?.Description
-                                 ?? f.Description
-            }).ToList();
+            var foodsWithTranslation = poi.Foods
+                .Where(f => !f.IsDeleted) // 🔥 THÊM DÒNG NÀY
+                .Select(f => new
+                {
+                    f.Id,
+                    f.Price,
+                    f.ImageUrl,
+                    TranslatedName = f.Translations.FirstOrDefault(t => t.LanguageCode == langCode)?.Name
+                                     ?? f.Translations.FirstOrDefault(t => t.LanguageCode == "vi")?.Name
+                                     ?? f.Name,
+                    TranslatedDesc = f.Translations.FirstOrDefault(t => t.LanguageCode == langCode)?.Description
+                                     ?? f.Translations.FirstOrDefault(t => t.LanguageCode == "vi")?.Description
+                                     ?? f.Description
+                }).ToList();
+
 
             ViewBag.Foods = foodsWithTranslation;
 
@@ -344,7 +347,7 @@ namespace FoodStreetWeb.Controllers
                             Name = food.Name,
                             Price = food.Price,
                             Description = food.Description,
-                            ImageUrl = foodImage,
+                            ImageUrl = foodImage ?? "/images/default.png",
                             PoiRequestId = request.Id
                         };
 
@@ -370,8 +373,8 @@ namespace FoodStreetWeb.Controllers
             if (poi == null)
                 return NotFound();
 
-            var foods = await _context.Foods
-      .Where(f => f.PoiId == id)
+var foods = await _context.Foods
+    .Where(f => f.PoiId == id && !f.IsDeleted)
       .Select(f => new FoodEditItem
       {
           Id = f.Id,
@@ -391,6 +394,7 @@ namespace FoodStreetWeb.Controllers
                 Longitude = poi.Longitude,
                 Radius = poi.Radius,
                 ImageUrl = poi.ImageUrl,
+                Priority = poi.Priority,
                 Foods = foods
             };
 
@@ -420,6 +424,7 @@ namespace FoodStreetWeb.Controllers
                 poi.Longitude = model.Longitude;
                 poi.Radius = model.Radius;
                 poi.Description = model.Description;
+                poi.Priority = model.Priority;
                 if (model.ImageFile != null)
                 {
                     poi.ImageUrl = await SaveImage(model.ImageFile);
@@ -435,6 +440,19 @@ namespace FoodStreetWeb.Controllers
 
                     foreach (var food in model.Foods)
                     {
+                        // 🔥 XOÁ
+                        // 🔥 chỉ ADMIN mới được soft delete thật
+                        if (food.IsDeleted && food.Id > 0)
+                        {
+                            var toRemove = poi.Foods.FirstOrDefault(f => f.Id == food.Id);
+                            if (toRemove != null)
+                            {
+                                toRemove.IsDeleted = true; // chỉ admin
+                            }
+                            continue;
+                        }
+
+                        // UPDATE
                         if (food.Id > 0)
                         {
                             var existing = poi.Foods.FirstOrDefault(f => f.Id == food.Id);
@@ -453,6 +471,7 @@ namespace FoodStreetWeb.Controllers
                         }
                         else
                         {
+                            // ADD
                             poi.Foods.Add(new Food
                             {
                                 Name = food.Name,
@@ -508,8 +527,8 @@ namespace FoodStreetWeb.Controllers
 
                 // ===== FOOD =====
                 var foods = await _context.Foods
-                    .Where(x => x.PoiId == poi.Id)
-                    .ToListAsync();
+                    .Where(x => x.PoiId == poi.Id && !x.IsDeleted)
+                                    .ToListAsync();
 
                 foreach (var food in foods)
                 {
@@ -581,30 +600,50 @@ namespace FoodStreetWeb.Controllers
             _context.PoiRequests.Add(poiRequest);
             await _context.SaveChangesAsync();
 
-            if (model.Foods != null)
+            // 1. DELETE trước (tách riêng, KHÔNG nằm trong foreach chính)
+            var deleteFoods = model.Foods?
+                .Where(f => f.IsDeleted && f.Id > 0)
+                .ToList();
+
+            if (deleteFoods != null)
             {
-                foreach (var food in model.Foods)
+                foreach (var f in deleteFoods)
                 {
-                    var foodImage = food.ImageUrl;
-
-                    if (food.ImageFile != null)
-                    {
-                        foodImage = await SaveImage(food.ImageFile);
-                    }
-
                     _context.FoodRequests.Add(new FoodRequest
                     {
                         PoiRequestId = poiRequest.Id,
-                        FoodId = food.Id,
-                        Name = food.Name,
-                        Price = food.Price,
-                        Description = food.Description,
-                        ImageUrl = foodImage // ✅ FIX ở đây
+                        FoodId = f.Id,
+                        Name = f.Name,
+                        Price = f.Price,
+                        Description = f.Description,
+                        RequestType = FoodRequestType.Delete
                     });
                 }
-
-                await _context.SaveChangesAsync();
             }
+
+            // 2. ADD / UPDATE riêng
+            foreach (var food in model.Foods.Where(f => !f.IsDeleted))
+            {
+                if (string.IsNullOrWhiteSpace(food.Name))
+                    continue;
+
+                var foodImage = food.ImageFile != null
+                    ? await SaveImage(food.ImageFile)
+                    : food.ImageUrl;
+
+                _context.FoodRequests.Add(new FoodRequest
+                {
+                    PoiRequestId = poiRequest.Id,
+                    FoodId = food.Id,
+                    Name = food.Name,
+                    Price = food.Price,
+                    Description = food.Description,
+                    ImageUrl = foodImage ?? "/images/default.png"
+                });
+            }
+
+            // 🔥 THIẾU CÁI NÀY
+            await _context.SaveChangesAsync();
 
             return RedirectToAction("Requests");
         }
@@ -708,9 +747,11 @@ namespace FoodStreetWeb.Controllers
 
                 var newFoods = new List<Food>();
 
+
                 foreach (var fr in foodRequests)
                 {
-                    var food = new Food
+
+                    var newFood = new Food
                     {
                         Name = fr.Name,
                         Price = fr.Price,
@@ -719,7 +760,7 @@ namespace FoodStreetWeb.Controllers
                         PoiId = poi.Id
                     };
 
-                    newFoods.Add(food);
+                    newFoods.Add(newFood);
                 }
 
                 _context.Foods.AddRange(newFoods);
@@ -804,6 +845,23 @@ namespace FoodStreetWeb.Controllers
 
                 foreach (var fr in foodRequests)
                 {
+
+                    // =====================
+                    // 1. DELETE FOOD
+                    // =====================
+                    if (fr.RequestType == FoodRequestType.Delete)
+                    {
+                        var existingFood = oldFoods.FirstOrDefault(x => x.Id == fr.FoodId);
+
+                        if (existingFood != null)
+                        {
+                            existingFood.IsDeleted = true;
+                            _context.Entry(existingFood).State = EntityState.Modified;
+                        }
+
+                        continue;
+                    }
+
                     if (fr.FoodId.HasValue)
                     {
                         var existing = oldFoods.FirstOrDefault(x => x.Id == fr.FoodId.Value);
@@ -872,7 +930,7 @@ namespace FoodStreetWeb.Controllers
 
                 // ===== FOOD =====
                 var foods = await _context.Foods
-                    .Where(x => x.PoiId == poi.Id)
+                    .Where(x => x.PoiId == poi.Id && !x.IsDeleted)
                     .ToListAsync();
 
                 foreach (var food in foods)

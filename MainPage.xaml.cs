@@ -547,9 +547,10 @@ public partial class MainPage : ContentPage
         // LẤY POI GẦN
         // =======================
         var nearbyPois = _poiList
-            .Where(p => p.DistanceKm <= TRIGGER_DISTANCE_KM)
-            .OrderBy(p => p.DistanceKm)
-            .ThenByDescending(p => p.Radius)
+            .Where(p => p.DistanceKm <= (p.Radius / 1000.0))
+            .OrderByDescending(p => p.Priority)              // ưu tiên
+            .ThenBy(p => p.DistanceKm)                       // gần hơn
+            .ThenByDescending(p => p.Radius)                 // radius lớn hơn trước
             .ThenByDescending(p => !string.IsNullOrEmpty(p.Description))
             .ThenBy(p => p.Id)
             .ToList();

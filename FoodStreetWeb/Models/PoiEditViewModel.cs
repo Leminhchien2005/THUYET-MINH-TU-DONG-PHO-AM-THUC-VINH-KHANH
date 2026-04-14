@@ -12,6 +12,8 @@ namespace FoodStreetWeb.Models
         public double Radius { get; set; }
         public string? ImageUrl { get; set; }
 
+        public int Priority { get; set; } = 1;
+
         public List<FoodEditItem> Foods { get; set; }
         public IFormFile ImageFile { get; set; }
     }
@@ -24,6 +26,8 @@ namespace FoodStreetWeb.Models
         public string Description { get; set; }
         public string? ImageUrl { get; set; }
         public bool IsExisting { get; set; }
+
+        public bool IsDeleted { get; set; }
         public IFormFile ImageFile { get; set; }
     }
 }

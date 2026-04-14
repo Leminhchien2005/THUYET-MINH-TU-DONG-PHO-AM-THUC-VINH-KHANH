@@ -45,6 +45,7 @@ namespace FoodStreetWeb.Controllers
                 poi.OwnerId,
                 poi.Status,
                 poi.DistanceKm,
+                poi.Priority,
 
                 Foods = poi.Foods.Select(food => new
                 {
@@ -116,6 +117,7 @@ namespace FoodStreetWeb.Controllers
                 poi.OwnerId,
                 poi.Status,
                 poi.DistanceKm,
+                poi.Priority,
 
                 Foods = poi.Foods.Select(food => new
                 {

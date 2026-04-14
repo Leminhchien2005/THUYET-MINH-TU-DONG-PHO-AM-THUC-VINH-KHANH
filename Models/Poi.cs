@@ -23,5 +23,7 @@ namespace FoodStreetGuide.Models
         // Không lưu vào DB
         [Ignore]
         public double DistanceKm { get; set; }
+
+        public int Priority { get; set; }
     }
 }

@@ -38,7 +38,7 @@
     <h4>Món ăn</h4>
 
     @{
-        var foods = ViewBag.Foods as List<FoodStreetWeb.Models.Food>;
+        var foods = ViewBag.Foods as dynamic;
     }
 
     @if (foods != null && foods.Count > 0)
@@ -46,9 +46,9 @@
         foreach (var food in foods)
         {
             <div style="border:1px solid #ccc; padding:10px; margin-bottom:10px;">
-                <h5>@food.Name</h5>
+                <h5>@food.TranslatedName</h5>
                 <p>Giá: @food.Price</p>
-                <p>@food.Description</p>
+                <p>@food.TranslatedDesc</p>
 
                 @if (!string.IsNullOrEmpty(food.ImageUrl))
                 {
@@ -86,9 +86,9 @@
 
     <script>
 
-        var lat = @Model.Latitude;
-        var lng = @Model.Longitude;
-        var radius = @Model.Radius;
+        var lat = @Model.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var lng = @Model.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var radius = @Model.Radius.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
         var map = L.map('map').setView([lat,lng],16);
 
@@ -99,7 +99,7 @@
         }).addTo(map);
 
         var marker = L.marker([lat,lng]).addTo(map)
-        .bindPopup("@Model.Name")
+        .bindPopup(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Name)))
         .openPopup();
 
         var circle = L.circle([lat,lng],{

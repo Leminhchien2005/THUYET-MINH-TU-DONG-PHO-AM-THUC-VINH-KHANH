@@ -37,6 +37,20 @@
         <input asp-for="Radius" id="Radius" class="form-control" />
     </div>
 
+    @if (User.IsInRole("Admin"))
+    {
+        <div class="form-group">
+            <label>Độ ưu tiên</label>
+            <select asp-for="Priority" class="form-control">
+                <option value="1">1 - Thấp</option>
+                <option value="2">2 - Trung bình</option>
+                <option value="3">3 - Cao</option>
+            </select>
+        </div>
+
+        <br />
+    }
+
     <br />
 
     <div class="form-group">
@@ -63,6 +77,7 @@
             <div class="food-item border p-2 mb-2">
 
                 <input type="hidden" name="Foods[@i].Id" value="@Model.Foods[i].Id" />
+                <input type="hidden" name="Foods[@i].IsDeleted" value="false" class="is-deleted" />
 
                 <input name="Foods[@i].Name" value="@Model.Foods[i].Name" class="form-control mb-1" />
                 <input name="Foods[@i].Price" value="@Model.Foods[i].Price" class="form-control mb-1" />
@@ -70,7 +85,11 @@
                 <input type="file" name="Foods[@i].ImageFile" class="form-control mb-1" />
                 <input type="hidden" name="Foods[@i].ImageUrl" value="@Model.Foods[i].ImageUrl" />
 
-                <!-- ❌ KHÔNG CÓ NÚT XOÁ -->
+                <!-- 🔥 THÊM NÚT XOÁ -->
+                <button type="button" class="btn btn-danger btn-sm remove-existing-food">
+                    Xóa món
+                </button>
+
             </div>
         }
     </div>
@@ -175,6 +194,15 @@
 
         // xoá món mới
         document.getElementById("foodContainer").addEventListener("click", function (e) {
+
+        // 🔥 xoá món đã có (có Id)
+        if (e.target.classList.contains("remove-existing-food")) {
+        const item = e.target.closest(".food-item");
+        item.querySelector(".is-deleted").value = "true";
+        item.style.display = "none";
+        }
+
+        // xoá món mới
         if (e.target.classList.contains("remove-food")) {
         e.target.closest(".food-item").remove();
         }

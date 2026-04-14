@@ -400,9 +400,9 @@
         {
             <text>
 
-                var oldLat = @oldPoi.Latitude;
-                var oldLng = @oldPoi.Longitude;
-                var oldRadius = @oldPoi.Radius;
+                var oldLat = @oldPoi.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                var oldLng = @oldPoi.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                var oldRadius = @oldPoi.Radius.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
                 var mapOld = L.map('mapOld').setView([oldLat, oldLng], 15);
 
@@ -411,7 +411,7 @@
 
                 L.marker([oldLat, oldLng])
                 .addTo(mapOld)
-                .bindPopup("Quán hiện tại")
+                .bindPopup(@Html.Raw(System.Text.Json.JsonSerializer.Serialize("Quán hiện tại")))
                 .openPopup();
 
                 L.circle([oldLat, oldLng],{
@@ -427,9 +427,9 @@
         // MAP YÊU CẦU / QUÁN MỚI
         // ==========================
 
-        var newLat = @Model.Latitude;
-        var newLng = @Model.Longitude;
-        var newRadius = @Model.Radius;
+        var newLat = @Model.Latitude.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var newLng = @Model.Longitude.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        var newRadius = @Model.Radius.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
         var mapNew = L.map('mapNew').setView([newLat, newLng], 15);
 
@@ -438,7 +438,7 @@
 
         L.marker([newLat, newLng])
         .addTo(mapNew)
-        .bindPopup("Vị trí yêu cầu")
+        .bindPopup(@Html.Raw(System.Text.Json.JsonSerializer.Serialize("Vị trí yêu cầu")))
         .openPopup();
 
         L.circle([newLat, newLng],{
