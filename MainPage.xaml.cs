@@ -21,6 +21,8 @@ public partial class MainPage : ContentPage
     private readonly DatabaseService _database = new();
     private readonly ApiService _apiService = new();
     private Dictionary<int, Label> _poiLabels = new();
+    private Dictionary<int, Pin> _poiPins = new();
+    private int? _nearestPoiId;
 
     private List<Poi> _poiList = new();
 
@@ -214,6 +216,17 @@ public partial class MainPage : ContentPage
         if (location != null)
         {
             _lastLocation = location;
+
+            foreach (var poi in _poiList)
+            {
+                poi.DistanceKm = DistanceHelper.CalculateDistanceKm(
+                    location.Latitude,
+                    location.Longitude,
+                    poi.Latitude,
+                    poi.Longitude);
+            }
+
+            RefreshLists(SearchEntry?.Text);
 
             MyMap.MoveToRegion(
                 MapSpan.FromCenterAndRadius(
@@ -482,6 +495,7 @@ public partial class MainPage : ContentPage
         MyMap.Pins.Clear();
         LabelContainer.Children.Clear();
         _poiLabels.Clear();
+        _poiPins.Clear();
 
         foreach (var poi in _poiList)
         {
@@ -491,8 +505,13 @@ public partial class MainPage : ContentPage
                 Address = poi.Description ?? "",
                 Location = new Location(poi.Latitude, poi.Longitude)
             };
-            pin.MarkerClicked += (s, e) => ShowPoiDetails(poi);
+            pin.MarkerClicked += (s, e) =>
+            {
+                ShowPoiDetails(poi);
+                e.HideInfoWindow = true;
+            };
             MyMap.Pins.Add(pin);
+            _poiPins[poi.Id] = pin;
 
             var nameLabel = new Label
             {
@@ -512,7 +531,44 @@ public partial class MainPage : ContentPage
             LabelContainer.Children.Add(nameLabel);
         }
 
+        UpdateNearestPoiHighlight();
         UpdateLabelPositions();
+    }
+
+    private void UpdateNearestPoiHighlight()
+    {
+        if (_lastLocation == null || _poiList.Count == 0)
+        {
+            _nearestPoiId = null;
+        }
+        else
+        {
+            _nearestPoiId = _poiList
+                .OrderBy(p => p.DistanceKm)
+                .Select(p => (int?)p.Id)
+                .FirstOrDefault();
+        }
+
+        foreach (var poi in _poiList)
+        {
+            var displayName = string.IsNullOrWhiteSpace(poi.Name)
+                ? $"POI #{poi.Id}"
+                : poi.Name;
+
+            var isNearest = _nearestPoiId.HasValue && poi.Id == _nearestPoiId.Value;
+
+            if (_poiPins.TryGetValue(poi.Id, out var pin))
+            {
+                pin.Label = isNearest ? $"⭐ {displayName}" : displayName;
+            }
+
+            if (_poiLabels.TryGetValue(poi.Id, out var label))
+            {
+                label.Text = isNearest ? $"⭐ {displayName}" : displayName;
+                label.BackgroundColor = isNearest ? Color.FromArgb("#FFF4CE") : Color.FromArgb("#DDFFFFFF");
+                label.TextColor = isNearest ? Color.FromArgb("#B45309") : Colors.Black;
+            }
+        }
     }
 
     private void UpdateLabelPositions()
@@ -1113,7 +1169,10 @@ public partial class MainPage : ContentPage
         var allItems = query.ToList();
         var nearbyItems = allItems
             .Where(p => p.DistanceKm <= (p.Radius / 1000.0))
+            .OrderBy(p => p.DistanceKm)
             .ToList();
+
+        UpdateNearestPoiHighlight();
 
         NearbyPoiList.ItemsSource = nearbyItems;
         AllPoiList.ItemsSource = allItems;
