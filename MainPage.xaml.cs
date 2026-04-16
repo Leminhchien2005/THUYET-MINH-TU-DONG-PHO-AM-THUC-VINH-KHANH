@@ -4,6 +4,7 @@ using FoodStreetGuide.Resources.Strings;
 using FoodStreetGuide.Services;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls.Maps;
+using Microsoft.Maui.Layouts;
 using Microsoft.Maui.Maps;
 using Microsoft.Maui.Networking;
 using System.Diagnostics;
@@ -19,6 +20,9 @@ public partial class MainPage : ContentPage
     private readonly LocationService _locationService = new();
     private readonly DatabaseService _database = new();
     private readonly ApiService _apiService = new();
+    private Dictionary<int, Label> _poiLabels = new();
+    private Dictionary<int, Pin> _poiPins = new();
+    private int? _nearestPoiId;
 
     private List<Poi> _poiList = new();
 
@@ -144,6 +148,7 @@ public partial class MainPage : ContentPage
             var center = MyMap.VisibleRegion.Center;
             var radius = MyMap.VisibleRegion.Radius;
             MyMap.MoveToRegion(MapSpan.FromCenterAndRadius(center, Distance.FromKilometers(radius.Kilometers * 0.5)));
+            UpdateLabelPositions();
         }
     }
 
@@ -154,6 +159,20 @@ public partial class MainPage : ContentPage
             var center = MyMap.VisibleRegion.Center;
             var radius = MyMap.VisibleRegion.Radius;
             MyMap.MoveToRegion(MapSpan.FromCenterAndRadius(center, Distance.FromKilometers(radius.Kilometers * 2.0)));
+            UpdateLabelPositions();
+
+        }
+    }
+
+    private void OnMapSizeChanged(object sender, EventArgs e)
+    {
+        UpdateLabelPositions();
+    }
+    private void OnMapPropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MyMap.VisibleRegion))
+        {
+            UpdateLabelPositions();
         }
     }
 
@@ -181,6 +200,9 @@ public partial class MainPage : ContentPage
         await LoadDataAsync();
         LoadMapPins();
 
+        MyMap.SizeChanged += OnMapSizeChanged;
+        MyMap.PropertyChanged += OnMapPropertyChanged;
+
         var status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
 
         if (status != PermissionStatus.Granted)
@@ -194,6 +216,17 @@ public partial class MainPage : ContentPage
         if (location != null)
         {
             _lastLocation = location;
+
+            foreach (var poi in _poiList)
+            {
+                poi.DistanceKm = DistanceHelper.CalculateDistanceKm(
+                    location.Latitude,
+                    location.Longitude,
+                    poi.Latitude,
+                    poi.Longitude);
+            }
+
+            RefreshLists(SearchEntry?.Text);
 
             MyMap.MoveToRegion(
                 MapSpan.FromCenterAndRadius(
@@ -214,6 +247,13 @@ public partial class MainPage : ContentPage
         TryShowPendingPoi();
     }
 
+    protected override void OnDisappearing()
+    {
+        base.OnDisappearing();
+        MyMap.SizeChanged -= OnMapSizeChanged;
+        MyMap.PropertyChanged -= OnMapPropertyChanged;
+    }
+
     public async void OpenRestaurantFromQr(string id)
     {
         var poi = await _apiService.GetPoiById(id);
@@ -231,6 +271,7 @@ public partial class MainPage : ContentPage
         var location = new Location(poi.Latitude, poi.Longitude);
 
         MyMap.MoveToRegion(MapSpan.FromCenterAndRadius(location, Distance.FromKilometers(0.5)));
+        UpdateLabelPositions();
 
         _ = SpeakAsync(textToRead);
     }
@@ -452,6 +493,9 @@ public partial class MainPage : ContentPage
     private void LoadMapPins()
     {
         MyMap.Pins.Clear();
+        LabelContainer.Children.Clear();
+        _poiLabels.Clear();
+        _poiPins.Clear();
 
         foreach (var poi in _poiList)
         {
@@ -461,19 +505,117 @@ public partial class MainPage : ContentPage
                 Address = poi.Description ?? "",
                 Location = new Location(poi.Latitude, poi.Longitude)
             };
-
-            // Bắt sự kiện khi chạm vào Pin trên bản đồ
             pin.MarkerClicked += (s, e) =>
             {
-                // 🔥 HIỂN THỊ TÊN QUÁN ĂN TRÊN MAP
-                e.HideInfoWindow = false;
-
-                // Hiển thị panel chi tiết phía dưới
                 ShowPoiDetails(poi);
+                e.HideInfoWindow = true;
             };
-
             MyMap.Pins.Add(pin);
+            _poiPins[poi.Id] = pin;
+
+            var nameLabel = new Label
+            {
+                Text = poi.Name,
+                FontSize = 12,
+                FontAttributes = FontAttributes.Bold,
+                BackgroundColor = Color.FromArgb("#DDFFFFFF"),
+                TextColor = Colors.Black,
+                Padding = new Thickness(6, 3),
+                LineBreakMode = LineBreakMode.TailTruncation,
+                MaxLines = 1,
+                InputTransparent = true
+            };
+            // KHÔNG dùng Border.CornerRadiusProperty
+
+            _poiLabels[poi.Id] = nameLabel;
+            LabelContainer.Children.Add(nameLabel);
         }
+
+        UpdateNearestPoiHighlight();
+        UpdateLabelPositions();
+    }
+
+    private void UpdateNearestPoiHighlight()
+    {
+        if (_lastLocation == null || _poiList.Count == 0)
+        {
+            _nearestPoiId = null;
+        }
+        else
+        {
+            _nearestPoiId = _poiList
+                .OrderBy(p => p.DistanceKm)
+                .Select(p => (int?)p.Id)
+                .FirstOrDefault();
+        }
+
+        foreach (var poi in _poiList)
+        {
+            var displayName = string.IsNullOrWhiteSpace(poi.Name)
+                ? $"POI #{poi.Id}"
+                : poi.Name;
+
+            var isNearest = _nearestPoiId.HasValue && poi.Id == _nearestPoiId.Value;
+
+            if (_poiPins.TryGetValue(poi.Id, out var pin))
+            {
+                pin.Label = isNearest ? $"⭐ {displayName}" : displayName;
+            }
+
+            if (_poiLabels.TryGetValue(poi.Id, out var label))
+            {
+                label.Text = isNearest ? $"⭐ {displayName}" : displayName;
+                label.BackgroundColor = isNearest ? Color.FromArgb("#FFF4CE") : Color.FromArgb("#DDFFFFFF");
+                label.TextColor = isNearest ? Color.FromArgb("#B45309") : Colors.Black;
+            }
+        }
+    }
+
+    private void UpdateLabelPositions()
+    {
+        if (MyMap.VisibleRegion == null || LabelContainer.Width <= 0 || LabelContainer.Height <= 0)
+            return;
+
+        foreach (var kvp in _poiLabels)
+        {
+            var poi = _poiList.FirstOrDefault(p => p.Id == kvp.Key);
+            if (poi == null) continue;
+
+            var screenPos = LocationToScreen(new Location(poi.Latitude, poi.Longitude));
+            if (screenPos.HasValue)
+            {
+                // Đặt label ở vị trí pixel tuyệt đối
+                double labelWidth = 100;
+                double labelHeight = 25;
+                double x = screenPos.Value.X - (labelWidth / 2); // căn giữa theo chiều ngang
+                double y = screenPos.Value.Y - labelHeight - 5;  // ở phía trên pin
+
+                AbsoluteLayout.SetLayoutBounds(kvp.Value, new Rect(x, y, labelWidth, labelHeight));
+                AbsoluteLayout.SetLayoutFlags(kvp.Value, AbsoluteLayoutFlags.None); // pixel tuyệt đối
+                kvp.Value.IsVisible = true;
+            }
+            else
+            {
+                kvp.Value.IsVisible = false;
+            }
+        }
+
+    }
+
+    private Point? LocationToScreen(Location location)
+    {
+        if (MyMap.VisibleRegion == null || MyMap.Width <= 0 || MyMap.Height <= 0)
+            return null;
+
+        var region = MyMap.VisibleRegion;
+        double mapWidth = MyMap.Width;
+        double mapHeight = MyMap.Height;
+
+        // Tính offset tương đối (0..1)
+        double x = (location.Longitude - region.Center.Longitude) / region.LongitudeDegrees + 0.5;
+        double y = 0.5 - (location.Latitude - region.Center.Latitude) / region.LatitudeDegrees;
+
+        return new Point(x * mapWidth, y * mapHeight);
     }
 
     // CẬP NHẬT VỊ TRÍ
@@ -673,6 +815,7 @@ public partial class MainPage : ContentPage
                 Distance.FromKilometers(0.3)
             )
         );
+        UpdateLabelPositions();
 
         BottomPanel.TranslationY = 280;
 
@@ -1026,7 +1169,10 @@ public partial class MainPage : ContentPage
         var allItems = query.ToList();
         var nearbyItems = allItems
             .Where(p => p.DistanceKm <= (p.Radius / 1000.0))
+            .OrderBy(p => p.DistanceKm)
             .ToList();
+
+        UpdateNearestPoiHighlight();
 
         NearbyPoiList.ItemsSource = nearbyItems;
         AllPoiList.ItemsSource = allItems;
@@ -1176,7 +1322,11 @@ public partial class MainPage : ContentPage
         if (t != null)
         {
             poi.Name = t.Name;
-            poi.Description = t.Description;
+        }
+
+        if (string.IsNullOrWhiteSpace(poi.Name))
+        {
+            poi.Name = $"POI #{poi.Id}";
         }
 
         return poi;

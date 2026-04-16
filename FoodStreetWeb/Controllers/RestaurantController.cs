@@ -54,6 +54,7 @@ namespace FoodStreetWeb.Controllers
         [HttpGet("restaurant/{id}/detail")]
         public async Task<IActionResult> WebDetail(int id, string lang = null)
         {
+
             // Ưu tiên tham số lang trên URL, nếu không có thì dùng cookie (hoặc mặc định)
             string langCode;
             if (!string.IsNullOrEmpty(lang) && (lang == "vi" || lang == "en" || lang == "zh"))
@@ -65,7 +66,7 @@ namespace FoodStreetWeb.Controllers
 
             var restaurant = await _context.Pois
                 .Include(p => p.Translations)
-                .Include(p => p.Foods).ThenInclude(f => f.Translations)
+                .Include(p => p.Foods.Where(f => !f.IsDeleted)).ThenInclude(f => f.Translations)
                 .FirstOrDefaultAsync(r => r.Id == id);
 
             if (restaurant == null) return NotFound();
@@ -75,7 +76,9 @@ namespace FoodStreetWeb.Controllers
             ViewBag.PoiName = poiTrans?.Name ?? restaurant.Name;
             ViewBag.PoiDescription = poiTrans?.Description ?? restaurant.Description;
 
-            var foodsWithTranslation = restaurant.Foods.Select(f => new
+            var foodsWithTranslation = restaurant.Foods
+                .Where(f => !f.IsDeleted)
+                .Select(f => new
             {
                 f.Id,
                 f.Price,

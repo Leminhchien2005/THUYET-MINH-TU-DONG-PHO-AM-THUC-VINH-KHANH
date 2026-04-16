@@ -9,12 +9,18 @@
     <Grid>
 
         <!-- MAP -->
-        <maps:Map
-            x:Name="MyMap"
-            IsShowingUser="True"
-            IsScrollEnabled="True"                      
-            IsZoomEnabled="True"
-            MapType="Street"/>
+        <Grid>
+            <maps:Map
+        x:Name="MyMap"
+        IsShowingUser="True"
+        IsScrollEnabled="True"                      
+        IsZoomEnabled="True"
+        MapType="Street"/>
+            <AbsoluteLayout
+        x:Name="LabelContainer"
+        InputTransparent="True"
+        BackgroundColor="Transparent" />
+        </Grid>
 
         <!-- SEARCH -->
         <Border
@@ -278,7 +284,6 @@
                         <CollectionView
                             Grid.Row="5"
                             x:Name="DetailFoodList"
-                            VerticalOptions="FillAndExpand"
                             SelectionMode="None">
 
                             <CollectionView.ItemsLayout>
