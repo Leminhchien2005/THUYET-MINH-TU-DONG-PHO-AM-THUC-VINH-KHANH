@@ -1359,6 +1359,7 @@ public partial class MainPage : ContentPage
         if (t != null)
         {
             poi.Name = t.Name;
+            poi.Description = t.Description;
         }
 
         if (string.IsNullOrWhiteSpace(poi.Name))
