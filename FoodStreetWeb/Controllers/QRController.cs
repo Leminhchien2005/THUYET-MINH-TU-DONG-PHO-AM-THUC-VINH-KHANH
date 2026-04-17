@@ -50,7 +50,7 @@ namespace FoodStreetWeb.Controllers
         // SCAN QR
         // =======================================
         [HttpGet("redeem/{code}")]
-        public IActionResult RedeemQR(string code)
+        public IActionResult RedeemQR(string code, [FromQuery] string? deviceId = null)
         {
             var qr = _context.QRCodes.FirstOrDefault(x => x.Code == code);
 
@@ -65,6 +65,14 @@ namespace FoodStreetWeb.Controllers
 
             qr.IsUsed = true;
             qr.UsedAt = DateTime.UtcNow;
+
+            // Lưu scan log để dashboard phân tích đông/vắng theo thời gian.
+            _context.ScanLogs.Add(new ScanLog
+            {
+                DeviceId = string.IsNullOrWhiteSpace(deviceId) ? "unknown-device" : deviceId.Trim(),
+                RestaurantId = qr.PoiId,
+                ScanTime = DateTime.UtcNow
+            });
 
             _context.SaveChanges();
 

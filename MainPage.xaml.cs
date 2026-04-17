@@ -2,6 +2,7 @@ using Android.Net;
 using FoodStreetGuide.Models;
 using FoodStreetGuide.Resources.Strings;
 using FoodStreetGuide.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Layouts;
@@ -20,6 +21,7 @@ public partial class MainPage : ContentPage
     private readonly LocationService _locationService = new();
     private readonly DatabaseService _database = new();
     private readonly ApiService _apiService = new();
+    private readonly DevicePresenceService? _devicePresenceService;
     private Dictionary<int, Label> _poiLabels = new();
     private Dictionary<int, Pin> _poiPins = new();
     private int? _nearestPoiId;
@@ -113,6 +115,15 @@ public partial class MainPage : ContentPage
     {
         InitializeComponent();
         MyMap.MapClicked += MyMap_MapClicked;
+
+        _devicePresenceService = Application.Current?.Handler?.MauiContext?.Services
+            .GetService<DevicePresenceService>();
+
+        if (_devicePresenceService != null)
+        {
+            _devicePresenceService.ConnectionStateChanged += OnDeviceConnectionStateChanged;
+            DeviceStatusLabel.Text = _devicePresenceService.IsConnected ? "🟢 Online" : "⚫ Offline";
+        }
     }
 
     public MainPage(string poiId) : this()
@@ -179,6 +190,8 @@ public partial class MainPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+
+        await EnsurePresenceConnectedAsync();
 
         if (_isInitialized)
         {
@@ -252,6 +265,30 @@ public partial class MainPage : ContentPage
         base.OnDisappearing();
         MyMap.SizeChanged -= OnMapSizeChanged;
         MyMap.PropertyChanged -= OnMapPropertyChanged;
+    }
+
+    private void OnDeviceConnectionStateChanged(bool isOnline)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            DeviceStatusLabel.Text = isOnline ? "🟢 Online" : "⚫ Offline";
+        });
+    }
+
+    private async Task EnsurePresenceConnectedAsync()
+    {
+        if (_devicePresenceService == null)
+            return;
+
+        try
+        {
+            await _devicePresenceService.EnsureConnectedAsync();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[Presence] Connect failed: {ex.Message}");
+            DeviceStatusLabel.Text = "⚫ Offline";
+        }
     }
 
     public async void OpenRestaurantFromQr(string id)

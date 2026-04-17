@@ -25,6 +25,7 @@ namespace FoodStreetGuide
 
             // Database
             builder.Services.AddSingleton<DatabaseService>();
+            builder.Services.AddSingleton<DevicePresenceService>();
             builder.Services.AddSingleton<MainPage>();
 
 #if DEBUG

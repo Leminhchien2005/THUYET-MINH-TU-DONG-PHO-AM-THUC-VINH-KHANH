@@ -23,5 +23,19 @@ namespace FoodStreetWeb.Data
         public DbSet<FoodTranslation> FoodTranslations { get; set; }
 
         public DbSet<QRCodeEntity> QRCodes { get; set; }
+
+        public DbSet<ScanLog> ScanLogs { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder builder)
+        {
+            base.OnModelCreating(builder);
+
+            // Tối ưu truy vấn dashboard theo thời gian + nhà hàng.
+            builder.Entity<ScanLog>()
+                .HasIndex(x => new { x.RestaurantId, x.ScanTime });
+
+            builder.Entity<ScanLog>()
+                .HasIndex(x => x.ScanTime);
+        }
     }
 }

@@ -22,6 +22,25 @@
         BackgroundColor="Transparent" />
         </Grid>
 
+        <!-- DEVICE PRESENCE STATUS -->
+        <Border
+            Margin="0,20,15,0"
+            Padding="10,4"
+            HorizontalOptions="End"
+            VerticalOptions="Start"
+            BackgroundColor="#AA000000"
+            StrokeThickness="0"
+            StrokeShape="RoundRectangle 12"
+            ZIndex="7">
+
+            <Label
+                x:Name="DeviceStatusLabel"
+                Text="⚫ Offline"
+                TextColor="White"
+                FontSize="12"/>
+
+        </Border>
+
         <!-- SEARCH -->
         <Border
             Margin="15,50,15,0"

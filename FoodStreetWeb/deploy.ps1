@@ -1,0 +1,3 @@
+docker build -t asia-southeast1-docker.pkg.dev/fast-asset-488602-g6/docker-repo/foodstreetweb:latest .
+docker push asia-southeast1-docker.pkg.dev/fast-asset-488602-g6/docker-repo/foodstreetweb:latest
+gcloud run deploy foodstreetweb --image asia-southeast1-docker.pkg.dev/fast-asset-488602-g6/docker-repo/foodstreetweb:latest --platform managed --region asia-southeast1 --allow-unauthenticated --port 8080 --memory 1Gi --cpu 1

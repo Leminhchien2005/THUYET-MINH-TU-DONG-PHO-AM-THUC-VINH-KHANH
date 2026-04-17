@@ -11,7 +11,7 @@ public class ApiService
     {
         _httpClient = new HttpClient
         {
-            BaseAddress = new Uri("https://foodstreet-web-sfecqdx26a-as.a.run.app"),
+            BaseAddress = new Uri("https://foodstreetweb-sfecqdx26a-as.a.run.app"),
             Timeout = TimeSpan.FromSeconds(10) 
         };
     }
@@ -72,7 +72,10 @@ public class ApiService
 
             using var client = new HttpClient(handler);
 
-            var response = await client.GetAsync(qrUrl);
+            var deviceId = DeviceIdService.GetOrCreateDeviceId();
+            var requestUrl = AppendDeviceIdQuery(qrUrl, deviceId);
+
+            var response = await client.GetAsync(requestUrl);
 
             if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
                 return null;
@@ -97,5 +100,14 @@ public class ApiService
         {
             return null;
         }
+    }
+
+    private static string AppendDeviceIdQuery(string url, string deviceId)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+            return url;
+
+        var separator = url.Contains('?', StringComparison.Ordinal) ? "&" : "?";
+        return $"{url}{separator}deviceId={Uri.EscapeDataString(deviceId)}";
     }
 }

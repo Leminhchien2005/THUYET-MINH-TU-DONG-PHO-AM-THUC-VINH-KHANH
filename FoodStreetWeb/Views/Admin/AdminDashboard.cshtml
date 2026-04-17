@@ -1,21 +1,530 @@
-﻿<h2>Trang Admin</h2>
+﻿@{
+    ViewData["Title"] = "Admin Dashboard";
+}
 
-<ul>
-    <li>
-        <a asp-controller="Pois" asp-action="AdminRequests">
-            Quản lý yêu cầu
-        </a>
-    </li>
+<style>
+    .heatmap-wrap {
+        position: relative;
+    }
 
-    <li>
-        <a asp-controller="Pois" asp-action="Index">
-            Quản lý nhà hàng
-        </a>
-    </li>
+    .heat-cell {
+        min-width: 52px;
+        transition: transform .08s ease, box-shadow .15s ease;
+        cursor: default;
+    }
 
-    <li>
-        <a asp-controller="Admin" asp-action="ManageUsers">
-            Quản lý tài khoản
-        </a>
-    </li>
-</ul>
+    .heat-cell:hover {
+        transform: scale(1.03);
+        box-shadow: inset 0 0 0 2px rgba(0,0,0,.12);
+    }
+
+    .heat-legend {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .heat-legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: #495057;
+    }
+
+    .heat-legend-swatch {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        border: 1px solid rgba(0,0,0,.08);
+    }
+
+    #heatTooltip {
+        position: fixed;
+        pointer-events: none;
+        display: none;
+        z-index: 1050;
+        background: #1f2937;
+        color: #fff;
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 12px;
+        line-height: 1.35;
+        box-shadow: 0 10px 24px rgba(0,0,0,.25);
+        max-width: 240px;
+    }
+</style>
+
+<h3>Dashboard</h3>
+
+<div class="row g-2 mb-3">
+    <div class="col-md-3">
+        <label class="form-label">Nhà hàng</label>
+        <select id="restaurantFilter" class="form-select">
+            <option value="">Tất cả</option>
+        </select>
+    </div>
+
+    <div class="col-md-3">
+        <label class="form-label">Từ ngày</label>
+        <input id="fromDate" type="date" class="form-control" />
+    </div>
+
+    <div class="col-md-3">
+        <label class="form-label">Đến ngày</label>
+        <input id="toDate" type="date" class="form-control" />
+    </div>
+
+    <div class="col-md-3 d-flex align-items-end gap-2">
+        <button id="btnApply" class="btn btn-primary">Áp dụng</button>
+        <button id="btnReset" class="btn btn-outline-secondary">Reset</button>
+        <button id="btnExportCsv" class="btn btn-success">Export CSV</button>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="text-muted">Tổng lượt quét</div>
+                <div id="totalScans" style="font-size: 28px; font-weight: bold;">0</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="text-muted">Số người online trên app</div>
+                <div id="onlineUsers" style="font-size: 28px; font-weight: bold;">0</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h6>Top quán</h6>
+                <div id="topRestaurants" class="small"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-6 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h6>📊 Lượt quét theo ngày (Line)</h6>
+                <canvas id="timelineChart" height="130"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6 mb-3">
+        <div class="card">
+            <div class="card-body">
+                <h6>📊 Lượt quét theo giờ (Bar)</h6>
+                <canvas id="hourlyChart" height="130"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h6>🔥 Heatmap đông/vắng (Giờ x Thứ)</h6>
+        <div class="heatmap-wrap">
+            <div class="table-responsive">
+                <table class="table table-bordered text-center align-middle" id="heatmapTable"></table>
+            </div>
+            <div id="heatTooltip"></div>
+        </div>
+        <div class="heat-legend mt-2">
+            <span class="heat-legend-item"><span class="heat-legend-swatch" style="background:rgba(59,130,246,.18)"></span>Vắng</span>
+            <span class="heat-legend-item"><span class="heat-legend-swatch" style="background:rgba(245,158,11,.35)"></span>Bình thường</span>
+            <span class="heat-legend-item"><span class="heat-legend-swatch" style="background:rgba(239,68,68,.60)"></span>Đông</span>
+        </div>
+        <small class="text-muted">Màu đậm hơn = đông hơn. Nhãn: Đông / Bình thường / Vắng.</small>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h6>So sánh giữa 2 ngày</h6>
+
+        <div class="row g-2 mb-2">
+            <div class="col-md-4">
+                <label class="form-label">Ngày A</label>
+                <input id="compareDayA" type="date" class="form-control" />
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Ngày B</label>
+                <input id="compareDayB" type="date" class="form-control" />
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button id="btnCompare" class="btn btn-outline-primary">So sánh</button>
+            </div>
+        </div>
+
+        <canvas id="compareChart" height="120"></canvas>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const apiBase = '/api/ScanAnalytics';
+    const poisApi = '/api/PoisApi';
+    const devicePresenceApi = '/api/DevicePresence/online-devices';
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+    let timelineChart;
+    let hourlyChart;
+    let compareChart;
+    let latestOverview = null;
+    let latestPatterns = null;
+    let latestHeatmap = null;
+
+    function fmtDate(value) {
+        const d = new Date(value);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    function buildQuery(params) {
+        const query = new URLSearchParams();
+        Object.entries(params).forEach(([k, v]) => {
+            if (v !== null && v !== undefined && v !== '') query.append(k, v);
+        });
+        return query.toString() ? `?${query.toString()}` : '';
+    }
+
+    function getFilters() {
+        const restaurantId = document.getElementById('restaurantFilter').value;
+        const fromDate = document.getElementById('fromDate').value;
+        const toDate = document.getElementById('toDate').value;
+
+        return {
+            restaurantId,
+            fromUtc: fromDate ? `${fromDate}T00:00:00Z` : '',
+            toUtc: toDate ? `${toDate}T23:59:59Z` : ''
+        };
+    }
+
+    async function loadRestaurantOptions() {
+        const select = document.getElementById('restaurantFilter');
+        try {
+            const res = await fetch(poisApi);
+            if (!res.ok) return;
+
+            const data = await res.json();
+            data.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.id;
+                opt.textContent = `${item.id} - ${item.name}`;
+                select.appendChild(opt);
+            });
+        } catch {
+        }
+    }
+
+    async function loadOverview() {
+        const filters = getFilters();
+        const res = await fetch(`${apiBase}/overview${buildQuery(filters)}`);
+        if (!res.ok) return;
+
+        const data = await res.json();
+        latestOverview = data;
+        document.getElementById('totalScans').textContent = data.totalScans ?? 0;
+
+        const topDiv = document.getElementById('topRestaurants');
+        if (!data.topRestaurants || data.topRestaurants.length === 0) {
+            topDiv.innerHTML = '<span class="text-muted">Chưa có dữ liệu</span>';
+            return;
+        }
+
+        topDiv.innerHTML = data.topRestaurants
+            .map((x, i) => `<div>${i + 1}. ${x.restaurantName} - <b>${x.count}</b> lượt</div>`)
+            .join('');
+    }
+
+    async function loadOnlineUsers() {
+        const el = document.getElementById('onlineUsers');
+
+        try {
+            const res = await fetch(devicePresenceApi);
+            if (!res.ok) {
+                el.textContent = '0';
+                return;
+            }
+
+            const data = await res.json();
+            el.textContent = data.count ?? 0;
+        } catch {
+            el.textContent = '0';
+        }
+    }
+
+    async function loadPatterns() {
+        const filters = getFilters();
+        const res = await fetch(`${apiBase}/patterns${buildQuery(filters)}`);
+        if (!res.ok) return;
+
+        const data = await res.json();
+        latestPatterns = data;
+
+        const timelineLabels = (data.timeline ?? []).map(x => fmtDate(x.date));
+        const timelineValues = (data.timeline ?? []).map(x => x.count);
+
+        const hourlyLabels = (data.hourly ?? []).map(x => x.hour);
+        const hourlyValues = (data.hourly ?? []).map(x => x.count);
+
+        if (timelineChart) timelineChart.destroy();
+        timelineChart = new Chart(document.getElementById('timelineChart'), {
+            type: 'line',
+            data: {
+                labels: timelineLabels,
+                datasets: [{
+                    label: 'Lượt quét theo ngày',
+                    data: timelineValues,
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.2)',
+                    fill: true,
+                    tension: 0.25
+                }]
+            }
+        });
+
+        if (hourlyChart) hourlyChart.destroy();
+        hourlyChart = new Chart(document.getElementById('hourlyChart'), {
+            type: 'bar',
+            data: {
+                labels: hourlyLabels,
+                datasets: [{
+                    label: 'Lượt quét theo giờ',
+                    data: hourlyValues,
+                    backgroundColor: '#20c997'
+                }]
+            }
+        });
+    }
+
+    function getHeatLevel(count, max) {
+        if (max <= 0) return 'Vắng';
+        const ratio = count / max;
+        if (ratio >= 0.66) return 'Đông';
+        if (ratio >= 0.33) return 'Bình thường';
+        return 'Vắng';
+    }
+
+    function heatColor(count, max) {
+        const level = getHeatLevel(count, max);
+        if (level === 'Đông') return 'rgba(239,68,68,.60)';
+        if (level === 'Bình thường') return 'rgba(245,158,11,.35)';
+        return 'rgba(59,130,246,.18)';
+    }
+
+    async function loadHeatmap() {
+        const filters = getFilters();
+        const res = await fetch(`${apiBase}/heatmap${buildQuery(filters)}`);
+        if (!res.ok) return;
+
+        const data = await res.json();
+        latestHeatmap = data;
+        const points = data.points ?? [];
+        const table = document.getElementById('heatmapTable');
+
+        const max = points.reduce((m, x) => Math.max(m, x.count || 0), 0);
+
+        const map = new Map();
+        points.forEach(p => {
+            map.set(`${p.dayOfWeek}-${p.hour}`, p);
+        });
+
+        let html = '<thead><tr><th>Day / Hour</th>';
+        for (let h = 0; h < 24; h++) {
+            html += `<th>${h}</th>`;
+        }
+        html += '</tr></thead><tbody>';
+
+        days.forEach(day => {
+            html += `<tr><th>${day}</th>`;
+            for (let h = 0; h < 24; h++) {
+                const key = `${day}-${h}`;
+                const item = map.get(key);
+                const count = item?.count ?? 0;
+                const level = item?.crowdLevel ?? 'Vắng';
+                html += `<td class="heat-cell" style="background:${heatColor(count, max)}" data-day="${day}" data-hour="${h}" data-count="${count}" data-level="${level}">${count}<br/><small>${level}</small></td>`;
+            }
+            html += '</tr>';
+        });
+
+        html += '</tbody>';
+        table.innerHTML = html;
+    }
+
+    function wireHeatTooltip() {
+        const table = document.getElementById('heatmapTable');
+        const tooltip = document.getElementById('heatTooltip');
+
+        table.addEventListener('mouseover', (e) => {
+            const cell = e.target.closest('.heat-cell');
+            if (!cell) return;
+
+            const day = cell.dataset.day;
+            const hour = cell.dataset.hour;
+            const count = cell.dataset.count;
+            const level = cell.dataset.level;
+
+            tooltip.innerHTML = `<div><b>${day}</b> - ${hour}:00</div><div>Lượt quét: <b>${count}</b></div><div>Mức độ: <b>${level}</b></div>`;
+            tooltip.style.display = 'block';
+        });
+
+        table.addEventListener('mousemove', (e) => {
+            if (tooltip.style.display !== 'block') return;
+            tooltip.style.left = `${e.clientX + 14}px`;
+            tooltip.style.top = `${e.clientY + 14}px`;
+        });
+
+        table.addEventListener('mouseout', (e) => {
+            if (!e.target.closest('.heat-cell')) return;
+            tooltip.style.display = 'none';
+        });
+    }
+
+    function csvEscape(value) {
+        const text = (value ?? '').toString().replaceAll('"', '""');
+        return `"${text}"`;
+    }
+
+    function exportCsv() {
+        const rows = [];
+        rows.push(['FoodStreet Dashboard Export', new Date().toISOString()]);
+        rows.push([]);
+
+        if (latestOverview) {
+            rows.push(['Overview']);
+            rows.push(['TotalScans', latestOverview.totalScans ?? 0]);
+            rows.push(['RestaurantId', latestOverview.restaurantId ?? 'All']);
+            rows.push([]);
+
+            rows.push(['Top Restaurants']);
+            rows.push(['RestaurantId', 'RestaurantName', 'Count']);
+            (latestOverview.topRestaurants ?? []).forEach(x => {
+                rows.push([x.restaurantId, x.restaurantName, x.count]);
+            });
+            rows.push([]);
+        }
+
+        if (latestPatterns) {
+            rows.push(['Timeline']);
+            rows.push(['Date', 'Count']);
+            (latestPatterns.timeline ?? []).forEach(x => rows.push([fmtDate(x.date), x.count]));
+            rows.push([]);
+
+            rows.push(['Hourly']);
+            rows.push(['Hour', 'Count']);
+            (latestPatterns.hourly ?? []).forEach(x => rows.push([x.hour, x.count]));
+            rows.push([]);
+        }
+
+        if (latestHeatmap) {
+            rows.push(['Heatmap']);
+            rows.push(['DayOfWeek', 'Hour', 'Count', 'CrowdLevel']);
+            (latestHeatmap.points ?? []).forEach(x => rows.push([x.dayOfWeek, x.hour, x.count, x.crowdLevel]));
+            rows.push([]);
+        }
+
+        const csvContent = rows
+            .map(cols => cols.map(csvEscape).join(','))
+            .join('\n');
+
+        const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `foodstreet-dashboard-${fmtDate(new Date())}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    async function compareDays() {
+        const filters = getFilters();
+        const dayA = document.getElementById('compareDayA').value;
+        const dayB = document.getElementById('compareDayB').value;
+
+        if (!dayA || !dayB) return;
+
+        const query = buildQuery({
+            dayA,
+            dayB,
+            restaurantId: filters.restaurantId
+        });
+
+        const res = await fetch(`${apiBase}/compare-days${query}`);
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const labels = (data.dayAHourly ?? []).map(x => x.hour);
+        const valuesA = (data.dayAHourly ?? []).map(x => x.count);
+        const valuesB = (data.dayBHourly ?? []).map(x => x.count);
+
+        if (compareChart) compareChart.destroy();
+        compareChart = new Chart(document.getElementById('compareChart'), {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: `Ngày A (${dayA})`,
+                        data: valuesA,
+                        borderColor: '#fd7e14',
+                        backgroundColor: 'rgba(253,126,20,0.2)',
+                        fill: false
+                    },
+                    {
+                        label: `Ngày B (${dayB})`,
+                        data: valuesB,
+                        borderColor: '#6f42c1',
+                        backgroundColor: 'rgba(111,66,193,0.2)',
+                        fill: false
+                    }
+                ]
+            }
+        });
+    }
+
+    async function refreshAll() {
+        await Promise.all([
+            loadOverview(),
+            loadOnlineUsers(),
+            loadPatterns(),
+            loadHeatmap()
+        ]);
+    }
+
+    document.getElementById('btnApply').addEventListener('click', refreshAll);
+    document.getElementById('btnReset').addEventListener('click', async () => {
+        document.getElementById('restaurantFilter').value = '';
+        document.getElementById('fromDate').value = '';
+        document.getElementById('toDate').value = '';
+        await refreshAll();
+    });
+    document.getElementById('btnCompare').addEventListener('click', compareDays);
+    document.getElementById('btnExportCsv').addEventListener('click', exportCsv);
+
+    (async function init() {
+        const today = new Date();
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(today.getDate() - 6);
+
+        document.getElementById('fromDate').value = fmtDate(sevenDaysAgo);
+        document.getElementById('toDate').value = fmtDate(today);
+        document.getElementById('compareDayA').value = fmtDate(sevenDaysAgo);
+        document.getElementById('compareDayB').value = fmtDate(today);
+
+        await loadRestaurantOptions();
+        wireHeatTooltip();
+        await refreshAll();
+    })();
+</script>

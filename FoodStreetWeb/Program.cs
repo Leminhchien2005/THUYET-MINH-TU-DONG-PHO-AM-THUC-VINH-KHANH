@@ -1,5 +1,7 @@
 using FoodStreetWeb.Data;
+using FoodStreetWeb.Hubs;
 using FoodStreetWeb.Models;
+using FoodStreetWeb.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +16,7 @@ builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 // MVC (không cần AddViewLocalization)
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpClient<TranslateService>();
+builder.Services.AddSignalR();
 
 // MySQL
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -28,6 +31,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
+
+builder.Services.AddSingleton<OnlineDeviceStore>();
 
 // Cookie
 builder.Services.ConfigureApplicationCookie(options =>
@@ -106,10 +111,21 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 app.MapControllers();
+app.MapHub<DevicePresenceHub>("/hubs/device-presence");
 
 // Tạo Role mặc định
 using (var scope = app.Services.CreateScope())
 {
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await dbContext.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `ScanLogs` (
+    `Id` bigint NOT NULL AUTO_INCREMENT,
+    `DeviceId` longtext NOT NULL,
+    `RestaurantId` int NOT NULL,
+    `ScanTime` datetime(6) NOT NULL,
+    PRIMARY KEY (`Id`)
+);");
+
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     string[] roles = { "Admin", "RestaurantOwner" };
     foreach (var role in roles)

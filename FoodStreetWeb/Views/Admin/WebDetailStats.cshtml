@@ -1,0 +1,82 @@
+@model FoodStreetWeb.Models.QrWebDetailStatsViewModel
+
+<h2>Thống kê truy cập Web Detail sau quét QR</h2>
+
+<div style="margin-bottom:16px;">
+    <strong>Tổng lượt quét QR:</strong> @Model.TotalScanCount
+    <br />
+    <strong>Tổng lượt vào Web Detail:</strong> @Model.TotalWebDetailCount
+    <br />
+    <strong>Đang truy cập gần thời gian thực (@Model.RealtimeWindowMinutes phút):</strong> @Model.RealtimeAccessCount
+</div>
+
+<div class="alert alert-info" role="alert">
+    Trang tự động làm mới mỗi 10 giây để theo dõi gần thời gian thực.
+</div>
+
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>POI ID</th>
+            <th>Tên quán</th>
+            <th>Lượt quét QR</th>
+            <th>Lượt vào Web Detail</th>
+        </tr>
+    </thead>
+    <tbody>
+    @if (Model.Items == null || !Model.Items.Any())
+    {
+        <tr>
+            <td colspan="4">Chưa có dữ liệu.</td>
+        </tr>
+    }
+    else
+    {
+        foreach (var item in Model.Items)
+        {
+            <tr>
+                <td>@item.PoiId</td>
+                <td>@item.PoiName</td>
+                <td>@item.ScanCount</td>
+                <td>@item.WebDetailCount</td>
+            </tr>
+        }
+    }
+    </tbody>
+</table>
+
+<h4>Lượt truy cập mới nhất</h4>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Thời điểm</th>
+            <th>POI ID</th>
+            <th>Tên quán</th>
+        </tr>
+    </thead>
+    <tbody>
+    @if (Model.LatestAccesses == null || !Model.LatestAccesses.Any())
+    {
+        <tr>
+            <td colspan="3">Chưa có dữ liệu truy cập.</td>
+        </tr>
+    }
+    else
+    {
+        foreach (var item in Model.LatestAccesses)
+        {
+            <tr>
+                <td>@item.AccessedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</td>
+                <td>@item.PoiId</td>
+                <td>@item.PoiName</td>
+            </tr>
+        }
+    }
+    </tbody>
+</table>
+
+<script>
+    setTimeout(function () {
+        location.reload();
+    }, 10000);
+</script>
