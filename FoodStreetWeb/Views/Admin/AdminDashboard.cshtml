@@ -87,20 +87,28 @@
     <div class="col-md-3">
         <div class="card">
             <div class="card-body">
-                <div class="text-muted">Tổng lượt quét</div>
-                <div id="totalScans" style="font-size: 28px; font-weight: bold;">0</div>
+                <div class="text-muted">Số người online trên app</div>
+                <div id="onlineUsers" style="font-size: 28px; font-weight: bold;">0</div>
             </div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card">
             <div class="card-body">
-                <div class="text-muted">Số người online trên app</div>
-                <div id="onlineUsers" style="font-size: 28px; font-weight: bold;">0</div>
+                <div class="text-muted">Số người đang truy cập web</div>
+                <div id="webOnlineUsers" style="font-size: 28px; font-weight: bold;">0</div>
             </div>
         </div>
     </div>
-    <div class="col-md-6">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <div class="text-muted">Tổng lượt quét</div>
+                <div id="totalScans" style="font-size: 28px; font-weight: bold;">0</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
         <div class="card">
             <div class="card-body">
                 <h6>Top quán</h6>
@@ -132,7 +140,7 @@
 
 <div class="card mb-3">
     <div class="card-body">
-        <h6>🔥 Heatmap đông/vắng (Giờ x Thứ)</h6>
+        <h6>Heatmap đông/vắng</h6>
         <div class="heatmap-wrap">
             <div class="table-responsive">
                 <table class="table table-bordered text-center align-middle" id="heatmapTable"></table>
@@ -175,6 +183,7 @@
     const apiBase = '/api/ScanAnalytics';
     const poisApi = '/api/PoisApi';
     const devicePresenceApi = '/api/DevicePresence/online-devices';
+    const webOnlineApi = '/api/Online/count';
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
     let timelineChart;
@@ -202,10 +211,22 @@
         const fromDate = document.getElementById('fromDate').value;
         const toDate = document.getElementById('toDate').value;
 
+        const toUtcIsoFromVietnamDate = (dateText, endOfDay = false) => {
+            if (!dateText) return '';
+
+            const [year, month, day] = dateText.split('-').map(Number);
+            const hour = endOfDay ? 23 : 0;
+            const minute = endOfDay ? 59 : 0;
+            const second = endOfDay ? 59 : 0;
+
+            const utcMs = Date.UTC(year, month - 1, day, hour - 7, minute, second);
+            return new Date(utcMs).toISOString();
+        };
+
         return {
             restaurantId,
-            fromUtc: fromDate ? `${fromDate}T00:00:00Z` : '',
-            toUtc: toDate ? `${toDate}T23:59:59Z` : ''
+            fromUtc: toUtcIsoFromVietnamDate(fromDate, false),
+            toUtc: toUtcIsoFromVietnamDate(toDate, true)
         };
     }
 
@@ -223,6 +244,28 @@
                 select.appendChild(opt);
             });
         } catch {
+        }
+    }
+
+    async function loadWebOnlineUsers() {
+        const el = document.getElementById('webOnlineUsers');
+        const filters = getFilters();
+
+        try {
+            const endpoint = filters.restaurantId
+                ? `${webDetailOnlineApi}${buildQuery({ restaurantId: filters.restaurantId })}`
+                : webOnlineApi;
+
+            const res = await fetch(endpoint);
+            if (!res.ok) {
+                el.textContent = '0';
+                return;
+            }
+
+            const data = await res.json();
+            el.textContent = data.online ?? 0;
+        } catch {
+            el.textContent = '0';
         }
     }
 
@@ -498,8 +541,16 @@
         await Promise.all([
             loadOverview(),
             loadOnlineUsers(),
+            loadWebOnlineUsers(),
             loadPatterns(),
             loadHeatmap()
+        ]);
+    }
+
+    async function refreshOnlineCountersOnly() {
+        await Promise.all([
+            loadOnlineUsers(),
+            loadWebOnlineUsers()
         ]);
     }
 
@@ -526,5 +577,7 @@
         await loadRestaurantOptions();
         wireHeatTooltip();
         await refreshAll();
+
+        setInterval(refreshOnlineCountersOnly, 2000);
     })();
 </script>

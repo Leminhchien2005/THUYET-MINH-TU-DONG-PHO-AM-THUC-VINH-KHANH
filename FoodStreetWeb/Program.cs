@@ -5,7 +5,6 @@ using FoodStreetWeb.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using System.Globalization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,8 +12,13 @@ var builder = WebApplication.CreateBuilder(args);
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
-// MVC (không cần AddViewLocalization)
-builder.Services.AddControllersWithViews();
+// MVC + API JSON options
+builder.Services.AddControllersWithViews()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler =
+            System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
 builder.Services.AddHttpClient<TranslateService>();
 builder.Services.AddSignalR();
 
@@ -32,6 +36,7 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
+builder.Services.AddScoped<OnlineUsersService>();
 builder.Services.AddSingleton<OnlineDeviceStore>();
 
 // Cookie
@@ -64,13 +69,6 @@ builder.Services.AddCors(options =>
                         .AllowAnyHeader());
 });
 
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.ReferenceHandler =
-            System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
-    });
-
 var app = builder.Build();
 
 // Error handling
@@ -83,6 +81,8 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+
+app.UseMiddleware<CookieTrackingMiddleware>();
 
 app.Use(async (context, next) =>
 {
@@ -124,6 +124,22 @@ CREATE TABLE IF NOT EXISTS `ScanLogs` (
     `RestaurantId` int NOT NULL,
     `ScanTime` datetime(6) NOT NULL,
     PRIMARY KEY (`Id`)
+);");
+
+    await dbContext.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `OnlineWebPresences` (
+    `PresenceId` varchar(255) NOT NULL,
+    `VisitorId` varchar(191) NOT NULL,
+    `DeviceId` varchar(191) NOT NULL,
+    `TabId` varchar(191) NOT NULL,
+    `RestaurantId` int NOT NULL,
+    `Role` longtext NOT NULL,
+    `IsFromQr` tinyint(1) NOT NULL,
+    `LastPath` longtext NOT NULL,
+    `LastSeenUtc` datetime(6) NOT NULL,
+    PRIMARY KEY (`PresenceId`),
+    INDEX `IX_OnlineWebPresences_LastSeenUtc` (`LastSeenUtc`),
+    INDEX `IX_OnlineWebPresences_Restaurant_Device_Seen` (`RestaurantId`, `DeviceId`, `LastSeenUtc`)
 );");
 
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();

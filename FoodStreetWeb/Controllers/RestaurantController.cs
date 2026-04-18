@@ -92,10 +92,54 @@ namespace FoodStreetWeb.Controllers
             }).ToList();
             ViewBag.Foods = foodsWithTranslation;
 
+            var nearbyCandidates = await _context.Pois
+                .AsNoTracking()
+                .Include(p => p.Translations)
+                .Where(p => p.Id != id && p.Status == PoiStatus.Approved)
+                .ToListAsync();
+
+            var nearbyRestaurants = nearbyCandidates
+                .Select(p =>
+                {
+                    var trans = p.Translations.FirstOrDefault(t => t.LanguageCode == langCode)
+                                ?? p.Translations.FirstOrDefault(t => t.LanguageCode == "vi");
+
+                    return new
+                    {
+                        p.Id,
+                        Name = trans?.Name ?? p.Name,
+                        p.ImageUrl,
+                        DistanceKm = CalculateDistanceKm(restaurant.Latitude, restaurant.Longitude, p.Latitude, p.Longitude)
+                    };
+                })
+                .OrderBy(x => x.DistanceKm)
+                .Take(6)
+                .ToList();
+
+            ViewBag.NearbyRestaurants = nearbyRestaurants;
+            ViewBag.HasNearbyRestaurants = nearbyRestaurants.Count > 0;
+
             ViewBag.CurrentLang = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
 
             return View("Detail", restaurant);
         }
+
+        private static double CalculateDistanceKm(double lat1, double lon1, double lat2, double lon2)
+        {
+            const double earthRadiusKm = 6371;
+            var dLat = ToRadians(lat2 - lat1);
+            var dLon = ToRadians(lon2 - lon1);
+
+            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
+                    + Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2))
+                    * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+
+            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            return earthRadiusKm * c;
+        }
+
+        private static double ToRadians(double degrees)
+            => degrees * Math.PI / 180;
 
         [HttpGet("test-cookie")]
         public IActionResult TestCookie()

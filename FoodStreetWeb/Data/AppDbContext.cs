@@ -25,6 +25,7 @@ namespace FoodStreetWeb.Data
         public DbSet<QRCodeEntity> QRCodes { get; set; }
 
         public DbSet<ScanLog> ScanLogs { get; set; }
+        public DbSet<OnlineWebPresence> OnlineWebPresences { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -36,6 +37,16 @@ namespace FoodStreetWeb.Data
 
             builder.Entity<ScanLog>()
                 .HasIndex(x => x.ScanTime);
+
+            builder.Entity<OnlineWebPresence>()
+                .HasKey(x => x.PresenceId);
+
+            builder.Entity<OnlineWebPresence>()
+                .HasIndex(x => x.LastSeenUtc);
+
+            builder.Entity<OnlineWebPresence>()
+                .HasIndex(x => new { x.RestaurantId, x.DeviceId, x.LastSeenUtc });
+
         }
     }
 }

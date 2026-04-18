@@ -43,6 +43,27 @@
             }
         </div>
     }
+
+    @if (ViewBag.HasNearbyRestaurants == true)
+    {
+        <div class="row mt-5">
+            <h3 class="mb-3">Nhà hàng gần đây</h3>
+            @foreach (var nearby in ViewBag.NearbyRestaurants)
+            {
+                <div class="col-md-4 mb-3">
+                    <a href="/restaurant/@nearby.Id/detail" class="text-decoration-none text-dark">
+                        <div class="card h-100">
+                            <img src="@nearby.ImageUrl" class="card-img-top" style="height: 150px; object-fit: cover;" />
+                            <div class="card-body">
+                                <h5 class="card-title">@nearby.Name</h5>
+                                <p class="text-muted mb-0">Khoảng cách: @nearby.DistanceKm.ToString("0.00") km</p>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            }
+        </div>
+    }
 </div>
 
 
@@ -60,6 +81,85 @@
         var langCode = '@ViewBag.CurrentLang'; // "vi", "en", "zh"
         var isPlaying = false;
         var currentUtterance = null;
+        var leaveSent = false;
+        var heartbeatTimer = null;
+        var restaurantId = @Model.Id;
+        var tabStorageKey = 'foodstreet_tab_id';
+
+        function getOrCreateId(storage, key) {
+            var value = storage.getItem(key);
+            if (!value) {
+                value = (window.crypto && crypto.randomUUID)
+                    ? crypto.randomUUID()
+                    : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+                storage.setItem(key, value);
+            }
+            return value;
+        }
+
+        var tabId = getOrCreateId(window.sessionStorage, tabStorageKey);
+
+        function pingPresence() {
+            fetch('/api/Online/heartbeat-detail', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                cache: 'no-store',
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    restaurantId: restaurantId,
+                    tabId: tabId
+                })
+            }).catch(function () {
+            });
+        }
+
+        function startPresenceHeartbeat() {
+            if (heartbeatTimer) return;
+
+            // Ping ngay khi vào trang để số online tăng tức thì
+            pingPresence();
+
+            // Giữ phiên online khi người dùng vẫn đang mở trang detail
+            heartbeatTimer = setInterval(function () {
+                pingPresence();
+            }, 5000);
+        }
+
+        function notifyLeaveDetail() {
+            if (leaveSent) return;
+            leaveSent = true;
+
+            if (heartbeatTimer) {
+                clearInterval(heartbeatTimer);
+                heartbeatTimer = null;
+            }
+
+            fetch('/api/Online/leave-detail', {
+                method: 'POST',
+                keepalive: true,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    restaurantId: restaurantId,
+                    tabId: tabId
+                })
+            }).catch(() => { });
+        }
+
+        // Tránh giảm online sai trên mobile (pagehide có thể bắn khi app tạm ẩn)
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'visible') {
+                pingPresence();
+            }
+        });
+
+        window.addEventListener('beforeunload', notifyLeaveDetail);
+
+        startPresenceHeartbeat();
 
         // Hàm dừng phát
         function stopSpeaking() {
@@ -67,7 +167,7 @@
                 window.speechSynthesis.cancel();
             }
             isPlaying = false;
-            toggleButton.innerHTML = '🔊 Phát thanh';
+            toggleButton.innerHTML = '🔊';
             toggleButton.classList.remove('btn-danger');
             toggleButton.classList.add('btn-outline-secondary');
         }
@@ -90,19 +190,19 @@
             // Khi kết thúc phát (tự nhiên), cập nhật lại nút
             currentUtterance.onend = function() {
                 isPlaying = false;
-                toggleButton.innerHTML = '🔊 Phát thanh';
+                toggleButton.innerHTML = '🔊';
                 toggleButton.classList.remove('btn-danger');
                 toggleButton.classList.add('btn-outline-secondary');
             };
             currentUtterance.onerror = function() {
                 isPlaying = false;
-                toggleButton.innerHTML = '🔊 Phát thanh';
+                toggleButton.innerHTML = '🔊';
                 toggleButton.classList.remove('btn-danger');
                 toggleButton.classList.add('btn-outline-secondary');
             };
             window.speechSynthesis.speak(currentUtterance);
             isPlaying = true;
-            toggleButton.innerHTML = '⏹️ Dừng';
+            toggleButton.innerHTML = '⏹️';
             toggleButton.classList.remove('btn-outline-secondary');
             toggleButton.classList.add('btn-danger');
         }

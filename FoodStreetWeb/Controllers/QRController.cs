@@ -12,6 +12,8 @@ namespace FoodStreetWeb.Controllers
     public class QRController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private const bool EnforceSingleUseQr = false;
+        private const bool EnforceQrExpiration = false;
 
         public QRController(AppDbContext context)
         {
@@ -26,10 +28,12 @@ namespace FoodStreetWeb.Controllers
         {
             var code = Guid.NewGuid().ToString("N");
 
+            var now = GetVietnamNow();
+
             var qr = new QRCodeEntity
             {
                 Code = code,
-                ExpireAt = DateTime.UtcNow.AddMinutes(30)
+                ExpireAt = now.AddMinutes(30)
             };
 
             _context.QRCodes.Add(qr);
@@ -57,26 +61,54 @@ namespace FoodStreetWeb.Controllers
             if (qr == null)
                 return BadRequest("QR không tồn tại");
 
-            if (qr.IsUsed)
+            if (EnforceSingleUseQr && qr.IsUsed)
                 return BadRequest("QR đã được sử dụng");
 
-            if (qr.ExpireAt < DateTime.UtcNow)
+            var now = GetVietnamNow();
+
+            if (EnforceQrExpiration && qr.ExpireAt < now)
                 return BadRequest("QR đã hết hạn");
 
-            qr.IsUsed = true;
-            qr.UsedAt = DateTime.UtcNow;
+            if (EnforceSingleUseQr)
+            {
+                qr.IsUsed = true;
+                qr.UsedAt = now;
+            }
 
             // Lưu scan log để dashboard phân tích đông/vắng theo thời gian.
             _context.ScanLogs.Add(new ScanLog
             {
                 DeviceId = string.IsNullOrWhiteSpace(deviceId) ? "unknown-device" : deviceId.Trim(),
                 RestaurantId = qr.PoiId,
-                ScanTime = DateTime.UtcNow
+                ScanTime = now
             });
 
             _context.SaveChanges();
 
             return Redirect($"/restaurant/{qr.PoiId}");
+        }
+
+        private static DateTime GetVietnamNow()
+        {
+            var utcNow = DateTime.UtcNow;
+            var zoneIds = new[] { "Asia/Ho_Chi_Minh", "SE Asia Standard Time" };
+
+            foreach (var zoneId in zoneIds)
+            {
+                try
+                {
+                    var tz = TimeZoneInfo.FindSystemTimeZoneById(zoneId);
+                    return TimeZoneInfo.ConvertTimeFromUtc(utcNow, tz);
+                }
+                catch (TimeZoneNotFoundException)
+                {
+                }
+                catch (InvalidTimeZoneException)
+                {
+                }
+            }
+
+            return utcNow.AddHours(7);
         }
     }
 }
