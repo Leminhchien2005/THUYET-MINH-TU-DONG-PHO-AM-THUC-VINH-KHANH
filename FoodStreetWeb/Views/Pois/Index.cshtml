@@ -2,6 +2,10 @@
 
 <h2>Danh sách quán ăn</h2>
 
+<a asp-action="Create" class="btn btn-success mb-3">
+    + Thêm quán
+</a>
+
 <form method="get" class="mb-3">
 
     @if (User.IsInRole("Admin"))
