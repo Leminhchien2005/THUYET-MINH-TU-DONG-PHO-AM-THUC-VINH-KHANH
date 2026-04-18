@@ -24,6 +24,7 @@ public partial class MainPage : ContentPage
     private readonly DevicePresenceService? _devicePresenceService;
     private Dictionary<int, Label> _poiLabels = new();
     private Dictionary<int, Pin> _poiPins = new();
+    private HashSet<int> _crowdedPoiIds = new();
     private int? _nearestPoiId;
 
     private List<Poi> _poiList = new();
@@ -523,6 +524,8 @@ public partial class MainPage : ContentPage
                 .Select(p => LocalizePoi(p, poiTrans))
                 .ToList();
 
+            _crowdedPoiIds = await _apiService.GetCrowdedRestaurantIdsAsync();
+
             await DebugDatabaseAsync();
 
             MainThread.BeginInvokeOnMainThread(() =>
@@ -570,6 +573,11 @@ public partial class MainPage : ContentPage
         _poiList = pois
             .Select(p => LocalizePoi(p, poiTrans))
             .ToList();
+
+        if (Connectivity.Current.NetworkAccess == NetworkAccess.Internet)
+        {
+            _crowdedPoiIds = await _apiService.GetCrowdedRestaurantIdsAsync();
+        }
 
         RefreshLists(SearchEntry?.Text);
     }
@@ -622,36 +630,40 @@ public partial class MainPage : ContentPage
 
     private void UpdateNearestPoiHighlight()
     {
-        if (_lastLocation == null || _poiList.Count == 0)
-        {
-            _nearestPoiId = null;
-        }
-        else
-        {
-            _nearestPoiId = _poiList
-                .OrderBy(p => p.DistanceKm)
-                .Select(p => (int?)p.Id)
-                .FirstOrDefault();
-        }
-
         foreach (var poi in _poiList)
         {
             var displayName = string.IsNullOrWhiteSpace(poi.Name)
                 ? $"POI #{poi.Id}"
                 : poi.Name;
 
-            var isNearest = _nearestPoiId.HasValue && poi.Id == _nearestPoiId.Value;
+            var isNearby = poi.DistanceKm <= (poi.Radius / 1000.0);
+            var isCrowded = _crowdedPoiIds.Contains(poi.Id);
+            var displayWithBadge = isCrowded ? $"⭐ {displayName}" : displayName;
 
             if (_poiPins.TryGetValue(poi.Id, out var pin))
             {
-                pin.Label = isNearest ? $"⭐ {displayName}" : displayName;
+                pin.Label = displayWithBadge;
             }
 
             if (_poiLabels.TryGetValue(poi.Id, out var label))
             {
-                label.Text = isNearest ? $"⭐ {displayName}" : displayName;
-                label.BackgroundColor = isNearest ? Color.FromArgb("#FFF4CE") : Color.FromArgb("#DDFFFFFF");
-                label.TextColor = isNearest ? Color.FromArgb("#B45309") : Colors.Black;
+                label.Text = displayWithBadge;
+
+                if (isCrowded)
+                {
+                    label.BackgroundColor = Color.FromArgb("#FFF4CE");
+                    label.TextColor = Color.FromArgb("#B45309");
+                }
+                else if (isNearby)
+                {
+                    label.BackgroundColor = Color.FromArgb("#DBEAFE");
+                    label.TextColor = Color.FromArgb("#1E40AF");
+                }
+                else
+                {
+                    label.BackgroundColor = Color.FromArgb("#DDFFFFFF");
+                    label.TextColor = Colors.Black;
+                }
             }
         }
     }

@@ -183,6 +183,44 @@ namespace FoodStreetWeb.Controllers
             });
         }
 
+        [HttpGet("crowded-restaurants")]
+        public async Task<IActionResult> GetCrowdedRestaurants([FromQuery] int days = 7)
+        {
+            days = Math.Clamp(days, 1, 30);
+
+            var fromUtc = DateTime.UtcNow.AddDays(-days);
+
+            var raw = await _context.ScanLogs
+                .AsNoTracking()
+                .Where(x => x.ScanTime >= fromUtc)
+                .GroupBy(x => new { x.RestaurantId, Hour = x.ScanTime.Hour, DayOfWeek = (int)x.ScanTime.DayOfWeek })
+                .Select(g => new
+                {
+                    g.Key.RestaurantId,
+                    Count = g.Count()
+                })
+                .ToListAsync();
+
+            if (raw.Count == 0)
+            {
+                return Ok(new List<int>());
+            }
+
+            var crowdedRestaurantIds = raw
+                .GroupBy(x => x.RestaurantId)
+                .Where(group =>
+                {
+                    var avg = group.Average(x => x.Count);
+                    var highThreshold = (int)Math.Ceiling(avg * 1.2);
+                    return group.Any(x => x.Count > highThreshold);
+                })
+                .Select(g => g.Key)
+                .Distinct()
+                .ToList();
+
+            return Ok(crowdedRestaurantIds);
+        }
+
         // 7) Bonus: so sánh giữa 2 ngày
         [HttpGet("compare-days")]
         public async Task<IActionResult> CompareDays(
