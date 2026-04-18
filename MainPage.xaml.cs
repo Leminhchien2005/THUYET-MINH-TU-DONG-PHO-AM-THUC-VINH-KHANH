@@ -62,6 +62,8 @@ public partial class MainPage : ContentPage
 
     bool _suppressSearchUpdate;
     bool _isInitialized;
+    bool _isSyncing;
+    string? _lastSyncError;
 
     private string _pendingPoiId;
 
@@ -195,6 +197,10 @@ public partial class MainPage : ContentPage
 
         if (_isInitialized)
         {
+            if (Connectivity.Current.NetworkAccess == NetworkAccess.Internet)
+            {
+                _ = AutoUpdateAsync();
+            }
             return;
         }
 
@@ -202,12 +208,29 @@ public partial class MainPage : ContentPage
 
         await _database.Init();
 
+        var hasLocalData = (await _database.GetAllPoiAsync()).Count > 0;
+
         if (Connectivity.Current.NetworkAccess == NetworkAccess.Internet)
         {
-            _ = Task.Run(async () =>
+            if (!hasLocalData)
             {
-                await AutoUpdateAsync();
-            });
+                var synced = await AutoUpdateAsync();
+                if (!synced)
+                {
+                    var detail = string.IsNullOrWhiteSpace(_lastSyncError)
+                        ? string.Empty
+                        : $"\n\nChi tiết: {_lastSyncError}";
+                    await DisplayAlert("Lỗi", $"Không tải được dữ liệu POI từ server.{detail}", "OK");
+                }
+            }
+            else
+            {
+                _ = AutoUpdateAsync();
+            }
+        }
+        else if (!hasLocalData)
+        {
+            await DisplayAlert("Offline", "Thiết bị chưa có Internet và chưa có dữ liệu POI cục bộ.", "OK");
         }
 
         await LoadDataAsync();
@@ -372,8 +395,14 @@ public partial class MainPage : ContentPage
     }
 
     // LẤY DỮ LIỆU API → SQLITE
-    private async Task AutoUpdateAsync()
+    private async Task<bool> AutoUpdateAsync()
     {
+        if (_isSyncing)
+            return false;
+
+        _isSyncing = true;
+        _lastSyncError = null;
+
         try
         {
             var apiService = new ApiService();
@@ -382,7 +411,9 @@ public partial class MainPage : ContentPage
             if (pois == null || pois.Count == 0)
             {
                 Debug.WriteLine("API EMPTY");
-                return;
+                Console.WriteLine("API EMPTY");
+                _lastSyncError = "API trả về rỗng";
+                return false;
             }
 
             foreach (var poi in pois)
@@ -394,6 +425,7 @@ public partial class MainPage : ContentPage
             }
 
             Debug.WriteLine("API COUNT: " + pois.Count);
+            Console.WriteLine("API COUNT: " + pois.Count);
 
             // =========================
             // CLEAR DATABASE
@@ -483,6 +515,7 @@ public partial class MainPage : ContentPage
             var sqliteList = await _database.GetAllPoiAsync();
 
             Debug.WriteLine("SQLITE COUNT: " + sqliteList.Count);
+            Console.WriteLine("SQLITE COUNT: " + sqliteList.Count);
 
             var poiTrans = await _database.GetAllPoiTranslationAsync();
 
@@ -498,18 +531,33 @@ public partial class MainPage : ContentPage
                 LoadMapPins();
                 TryShowPendingPoi();
             });
+
+            return true;
         }
-        catch (HttpRequestException)
+        catch (HttpRequestException ex)
         {
-            Debug.WriteLine("API SERVER KHÔNG CHẠY");
+            Debug.WriteLine($"API HTTP ERROR: {ex.Message}");
+            Console.WriteLine($"API HTTP ERROR: {ex.Message}");
+            _lastSyncError = ex.Message;
+            return false;
         }
         catch (TaskCanceledException)
         {
             Debug.WriteLine("API TIMEOUT");
+            Console.WriteLine("API TIMEOUT");
+            _lastSyncError = "Kết nối quá thời gian chờ (timeout)";
+            return false;
         }
         catch (Exception ex)
         {
             Debug.WriteLine("ERROR: " + ex.Message);
+            Console.WriteLine("ERROR: " + ex.Message);
+            _lastSyncError = ex.Message;
+            return false;
+        }
+        finally
+        {
+            _isSyncing = false;
         }
     }
 

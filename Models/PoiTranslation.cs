@@ -4,7 +4,7 @@ namespace FoodStreetGuide.Models;
 
 public class PoiTranslation
 {
-    [PrimaryKey]
+    [PrimaryKey, AutoIncrement]
     public int Id { get; set; }
 
     public int PoiId { get; set; }

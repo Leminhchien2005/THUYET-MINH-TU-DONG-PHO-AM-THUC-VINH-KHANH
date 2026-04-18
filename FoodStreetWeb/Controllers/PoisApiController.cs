@@ -38,9 +38,7 @@ namespace FoodStreetWeb.Controllers
                 poi.Radius,
                 poi.Description,
 
-                ImageUrl = string.IsNullOrEmpty(poi.ImageUrl)
-                    ? ""
-                    : $"{Request.Scheme}://{Request.Host}{poi.ImageUrl}",
+                ImageUrl = BuildPublicImageUrl(poi.ImageUrl),
 
                 poi.OwnerId,
                 poi.Status,
@@ -54,9 +52,7 @@ namespace FoodStreetWeb.Controllers
                     food.Price,
                     food.Description,
 
-                    ImageUrl = string.IsNullOrEmpty(food.ImageUrl)
-                        ? ""
-                        : $"{Request.Scheme}://{Request.Host}{food.ImageUrl}",
+                    ImageUrl = BuildPublicImageUrl(food.ImageUrl),
 
                     food.PoiId,
 
@@ -110,9 +106,7 @@ namespace FoodStreetWeb.Controllers
                 poi.Radius,
                 poi.Description,
 
-                ImageUrl = string.IsNullOrEmpty(poi.ImageUrl)
-                    ? ""
-                    : $"{Request.Scheme}://{Request.Host}{poi.ImageUrl}",
+                ImageUrl = BuildPublicImageUrl(poi.ImageUrl),
 
                 poi.OwnerId,
                 poi.Status,
@@ -126,9 +120,7 @@ namespace FoodStreetWeb.Controllers
                     food.Price,
                     food.Description,
 
-                    ImageUrl = string.IsNullOrEmpty(food.ImageUrl)
-                        ? ""
-                        : $"{Request.Scheme}://{Request.Host}{food.ImageUrl}",
+                    ImageUrl = BuildPublicImageUrl(food.ImageUrl),
 
                     food.PoiId,
 
@@ -153,6 +145,20 @@ namespace FoodStreetWeb.Controllers
             };
 
             return Ok(result);
+        }
+
+        private string BuildPublicImageUrl(string? imageUrl)
+        {
+            if (string.IsNullOrWhiteSpace(imageUrl))
+                return string.Empty;
+
+            if (Uri.TryCreate(imageUrl, UriKind.Absolute, out _))
+                return imageUrl;
+
+            if (!imageUrl.StartsWith('/'))
+                imageUrl = "/" + imageUrl;
+
+            return $"{Request.Scheme}://{Request.Host}{imageUrl}";
         }
     }
 }

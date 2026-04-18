@@ -12,7 +12,7 @@ public class ApiService
         _httpClient = new HttpClient
         {
             BaseAddress = new Uri("https://foodstreetweb-sfecqdx26a-as.a.run.app"),
-            Timeout = TimeSpan.FromSeconds(10) 
+            Timeout = TimeSpan.FromSeconds(30)
         };
     }
 
