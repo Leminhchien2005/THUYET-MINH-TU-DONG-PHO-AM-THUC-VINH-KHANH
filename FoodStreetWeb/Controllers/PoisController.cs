@@ -1,5 +1,7 @@
 ﻿using FoodStreetWeb.Data;
 using FoodStreetWeb.Models;
+using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,11 +18,19 @@ namespace FoodStreetWeb.Controllers
     {
         private readonly AppDbContext _context;
         private readonly TranslateService _translator;
+        private readonly Cloudinary _cloudinary;
+        private readonly IWebHostEnvironment _environment;
 
-        public PoisController(AppDbContext context, TranslateService translator)
+        public PoisController(
+            AppDbContext context,
+            TranslateService translator,
+            Cloudinary cloudinary,
+            IWebHostEnvironment environment)
         {
             _context = context;
             _translator = translator;
+            _cloudinary = cloudinary;
+            _environment = environment;
         }
 
         // =========================
@@ -1096,11 +1106,32 @@ var foods = await _context.Foods
             if (file == null || file.Length == 0)
                 return null;
 
-            var fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
+            try
+            {
+                await using var uploadStream = file.OpenReadStream();
+                var uploadParams = new ImageUploadParams
+                {
+                    File = new FileDescription(file.FileName, uploadStream),
+                    Folder = "foodstreet"
+                };
 
-            var path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/images", fileName);
+                var uploadResult = await _cloudinary.UploadAsync(uploadParams);
 
-            using var stream = new FileStream(path, FileMode.Create);
+                if (uploadResult?.Error == null && uploadResult?.SecureUrl != null)
+                {
+                    return uploadResult.SecureUrl.ToString();
+                }
+            }
+            catch
+            {
+            }
+
+            var fileName = Guid.NewGuid() + Path.GetExtension(file.FileName);
+            var imageFolder = Path.Combine(_environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot"), "images");
+            Directory.CreateDirectory(imageFolder);
+            var path = Path.Combine(imageFolder, fileName);
+
+            await using var stream = new FileStream(path, FileMode.Create);
             await file.CopyToAsync(stream);
 
             return "/images/" + fileName;

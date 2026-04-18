@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
+using CloudinaryDotNet;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,6 +22,18 @@ builder.Services.AddControllersWithViews()
     });
 builder.Services.AddHttpClient<TranslateService>();
 builder.Services.AddSignalR();
+
+builder.Services.AddSingleton(_ =>
+{
+    var cloudName = builder.Configuration["Cloudinary:CloudName"];
+    var apiKey = builder.Configuration["Cloudinary:ApiKey"];
+    var apiSecret = builder.Configuration["Cloudinary:ApiSecret"];
+
+    var account = new Account(cloudName, apiKey, apiSecret);
+    var cloudinary = new Cloudinary(account);
+    cloudinary.Api.Secure = true;
+    return cloudinary;
+});
 
 // MySQL
 builder.Services.AddDbContext<AppDbContext>(options =>
