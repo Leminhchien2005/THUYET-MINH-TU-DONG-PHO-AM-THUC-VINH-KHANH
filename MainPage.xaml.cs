@@ -24,7 +24,7 @@ public partial class MainPage : ContentPage
     private readonly DevicePresenceService? _devicePresenceService;
     private Dictionary<int, Label> _poiLabels = new();
     private Dictionary<int, Pin> _poiPins = new();
-    private HashSet<int> _crowdedPoiIds = new();
+    private int? _featuredPoiId;
     private int? _nearestPoiId;
 
     private List<Poi> _poiList = new();
@@ -524,7 +524,7 @@ public partial class MainPage : ContentPage
                 .Select(p => LocalizePoi(p, poiTrans))
                 .ToList();
 
-            _crowdedPoiIds = await _apiService.GetCrowdedRestaurantIdsAsync();
+            _featuredPoiId = await _apiService.GetFeaturedRestaurantIdAsync();
 
             await DebugDatabaseAsync();
 
@@ -576,7 +576,7 @@ public partial class MainPage : ContentPage
 
         if (Connectivity.Current.NetworkAccess == NetworkAccess.Internet)
         {
-            _crowdedPoiIds = await _apiService.GetCrowdedRestaurantIdsAsync();
+            _featuredPoiId = await _apiService.GetFeaturedRestaurantIdAsync();
         }
 
         RefreshLists(SearchEntry?.Text);
@@ -637,8 +637,8 @@ public partial class MainPage : ContentPage
                 : poi.Name;
 
             var isNearby = poi.DistanceKm <= (poi.Radius / 1000.0);
-            var isCrowded = _crowdedPoiIds.Contains(poi.Id);
-            var displayWithBadge = isCrowded ? $"⭐ {displayName}" : displayName;
+            var isFeatured = _featuredPoiId.HasValue && poi.Id == _featuredPoiId.Value;
+            var displayWithBadge = isFeatured ? $"⭐ {displayName}" : displayName;
 
             if (_poiPins.TryGetValue(poi.Id, out var pin))
             {
@@ -649,7 +649,7 @@ public partial class MainPage : ContentPage
             {
                 label.Text = displayWithBadge;
 
-                if (isCrowded)
+                if (isFeatured)
                 {
                     label.BackgroundColor = Color.FromArgb("#FFF4CE");
                     label.TextColor = Color.FromArgb("#B45309");

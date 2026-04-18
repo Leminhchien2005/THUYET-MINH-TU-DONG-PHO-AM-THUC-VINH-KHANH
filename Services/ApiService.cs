@@ -16,6 +16,30 @@ public class ApiService
         };
     }
 
+    public async Task<int?> GetFeaturedRestaurantIdAsync(int days = 7)
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync($"api/ScanAnalytics/crowded-restaurants?days={days}");
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var json = await response.Content.ReadAsStringAsync();
+            var ids = JsonSerializer.Deserialize<List<int>>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            }) ?? new List<int>();
+
+            return ids.Count > 0 ? ids[0] : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public async Task<HashSet<int>> GetCrowdedRestaurantIdsAsync(int days = 7)
     {
         try

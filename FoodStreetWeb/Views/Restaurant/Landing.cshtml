@@ -2,6 +2,7 @@
 @{
     Layout = null;
     var deepLink = $"foodstreet://restaurant/{Model.Id}";
+    var webDetailLink = $"/restaurant/{Model.Id}/detail";
 }
 
 <!DOCTYPE html>
@@ -58,12 +59,12 @@
 
         <!-- Các nút bấm thủ công -->
         <a href="@deepLink" class="btn btn-app">📱 Mở trong ứng dụng (App)</a>
-        <a href="@Model.WebDetailUrl" class="btn btn-web">🌐 Xem trên Website</a>
+        <a href="@webDetailLink" class="btn btn-web">🌐 Xem trên Website</a>
     </div>
 
     <script>
             var appDeepLink = "@deepLink";
-            var webFallbackLink = "@Model.WebDetailUrl";
+            var webFallbackLink = "@webDetailLink";
             var statusMessage = document.getElementById("statusMessage");
 
             function autoOpenApp() {

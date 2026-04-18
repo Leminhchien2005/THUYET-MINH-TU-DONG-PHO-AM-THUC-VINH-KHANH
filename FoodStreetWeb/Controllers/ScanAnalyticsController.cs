@@ -188,11 +188,11 @@ namespace FoodStreetWeb.Controllers
         {
             days = Math.Clamp(days, 1, 30);
 
-            var fromUtc = DateTime.UtcNow.AddDays(-days);
+            var fromScanTime = NormalizeFilterToScanTime(DateTime.UtcNow.AddDays(-days)) ?? DateTime.UtcNow.AddDays(-days);
 
             var raw = await _context.ScanLogs
                 .AsNoTracking()
-                .Where(x => x.ScanTime >= fromUtc)
+                .Where(x => x.ScanTime >= fromScanTime)
                 .GroupBy(x => new { x.RestaurantId, Hour = x.ScanTime.Hour, DayOfWeek = (int)x.ScanTime.DayOfWeek })
                 .Select(g => new
                 {
@@ -208,14 +208,26 @@ namespace FoodStreetWeb.Controllers
 
             var crowdedRestaurantIds = raw
                 .GroupBy(x => x.RestaurantId)
-                .Where(group =>
+                .Select(group =>
                 {
                     var avg = group.Average(x => x.Count);
                     var highThreshold = (int)Math.Ceiling(avg * 1.2);
-                    return group.Any(x => x.Count > highThreshold);
+                    var maxCount = group.Max(x => x.Count);
+                    var totalCount = group.Sum(x => x.Count);
+                    var isCrowded = group.Any(x => x.Count > highThreshold);
+
+                    return new
+                    {
+                        RestaurantId = group.Key,
+                        IsCrowded = isCrowded,
+                        MaxCount = maxCount,
+                        TotalCount = totalCount
+                    };
                 })
-                .Select(g => g.Key)
-                .Distinct()
+                .Where(x => x.IsCrowded)
+                .OrderByDescending(x => x.MaxCount)
+                .ThenByDescending(x => x.TotalCount)
+                .Select(x => x.RestaurantId)
                 .ToList();
 
             return Ok(crowdedRestaurantIds);
@@ -228,8 +240,11 @@ namespace FoodStreetWeb.Controllers
             [FromQuery] DateTime dayB,
             [FromQuery] int? restaurantId = null)
         {
-            var start = dayA.Date < dayB.Date ? dayA.Date : dayB.Date;
-            var end = (dayA.Date > dayB.Date ? dayA.Date : dayB.Date).AddDays(1);
+            var normalizedDayA = NormalizeFilterToScanTime(dayA)?.Date ?? dayA.Date;
+            var normalizedDayB = NormalizeFilterToScanTime(dayB)?.Date ?? dayB.Date;
+
+            var start = normalizedDayA < normalizedDayB ? normalizedDayA : normalizedDayB;
+            var end = (normalizedDayA > normalizedDayB ? normalizedDayA : normalizedDayB).AddDays(1);
 
             var query = _context.ScanLogs
                 .AsNoTracking()
@@ -254,7 +269,7 @@ namespace FoodStreetWeb.Controllers
                 .Select(hour => new HourlyPointDto
                 {
                     Hour = hour,
-                    Count = raw.FirstOrDefault(x => x.Date == dayA.Date && x.Hour == hour)?.Count ?? 0
+                    Count = raw.FirstOrDefault(x => x.Date == normalizedDayA && x.Hour == hour)?.Count ?? 0
                 })
                 .ToList();
 
@@ -262,15 +277,15 @@ namespace FoodStreetWeb.Controllers
                 .Select(hour => new HourlyPointDto
                 {
                     Hour = hour,
-                    Count = raw.FirstOrDefault(x => x.Date == dayB.Date && x.Hour == hour)?.Count ?? 0
+                    Count = raw.FirstOrDefault(x => x.Date == normalizedDayB && x.Hour == hour)?.Count ?? 0
                 })
                 .ToList();
 
             return Ok(new CompareDaysResponse
             {
                 RestaurantId = restaurantId,
-                DayA = dayA.Date,
-                DayB = dayB.Date,
+                DayA = normalizedDayA,
+                DayB = normalizedDayB,
                 DayAHourly = pointsA,
                 DayBHourly = pointsB
             });
@@ -280,16 +295,32 @@ namespace FoodStreetWeb.Controllers
         {
             var query = _context.ScanLogs.AsNoTracking().AsQueryable();
 
+            var from = NormalizeFilterToScanTime(fromUtc);
+            var to = NormalizeFilterToScanTime(toUtc);
+
             if (restaurantId.HasValue)
                 query = query.Where(x => x.RestaurantId == restaurantId.Value);
 
-            if (fromUtc.HasValue)
-                query = query.Where(x => x.ScanTime >= fromUtc.Value);
+            if (from.HasValue)
+                query = query.Where(x => x.ScanTime >= from.Value);
 
-            if (toUtc.HasValue)
-                query = query.Where(x => x.ScanTime <= toUtc.Value);
+            if (to.HasValue)
+                query = query.Where(x => x.ScanTime <= to.Value);
 
             return query;
+        }
+
+        private static DateTime? NormalizeFilterToScanTime(DateTime? value)
+        {
+            if (!value.HasValue)
+                return null;
+
+            return value.Value.Kind switch
+            {
+                DateTimeKind.Utc => value.Value.AddHours(7),
+                DateTimeKind.Unspecified => value.Value,
+                _ => value.Value
+            };
         }
 
         private static int ToDotNetDayOfWeek(int monToSunIndex)

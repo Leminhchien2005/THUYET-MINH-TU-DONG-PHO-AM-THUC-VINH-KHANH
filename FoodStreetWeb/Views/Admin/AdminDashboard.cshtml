@@ -184,6 +184,7 @@
     const poisApi = '/api/PoisApi';
     const devicePresenceApi = '/api/DevicePresence/online-devices';
     const webOnlineApi = '/api/Online/count';
+    const webDetailOnlineApi = '/api/Online/web-detail-count';
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
     let timelineChart;
@@ -271,7 +272,7 @@
 
     async function loadOverview() {
         const filters = getFilters();
-        const res = await fetch(`${apiBase}/overview${buildQuery(filters)}`);
+        const res = await fetch(`${apiBase}/overview${buildQuery(filters)}`, { cache: 'no-store' });
         if (!res.ok) return;
 
         const data = await res.json();
@@ -308,7 +309,7 @@
 
     async function loadPatterns() {
         const filters = getFilters();
-        const res = await fetch(`${apiBase}/patterns${buildQuery(filters)}`);
+        const res = await fetch(`${apiBase}/patterns${buildQuery({ ...filters, _ts: Date.now() })}`, { cache: 'no-store' });
         if (!res.ok) return;
 
         const data = await res.json();
@@ -367,7 +368,7 @@
 
     async function loadHeatmap() {
         const filters = getFilters();
-        const res = await fetch(`${apiBase}/heatmap${buildQuery(filters)}`);
+        const res = await fetch(`${apiBase}/heatmap${buildQuery({ ...filters, _ts: Date.now() })}`, { cache: 'no-store' });
         if (!res.ok) return;
 
         const data = await res.json();
@@ -492,7 +493,7 @@
     }
 
     async function compareDays() {
-        const filters = getFilters();
+        const restaurantId = document.getElementById('restaurantFilter').value;
         const dayA = document.getElementById('compareDayA').value;
         const dayB = document.getElementById('compareDayB').value;
 
@@ -501,10 +502,11 @@
         const query = buildQuery({
             dayA,
             dayB,
-            restaurantId: filters.restaurantId
+            restaurantId,
+            _ts: Date.now()
         });
 
-        const res = await fetch(`${apiBase}/compare-days${query}`);
+        const res = await fetch(`${apiBase}/compare-days${query}`, { cache: 'no-store' });
         if (!res.ok) return;
 
         const data = await res.json();
@@ -549,6 +551,8 @@
 
     async function refreshOnlineCountersOnly() {
         await Promise.all([
+            loadOverview(),
+            loadHeatmap(),
             loadOnlineUsers(),
             loadWebOnlineUsers()
         ]);
