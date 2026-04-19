@@ -35,6 +35,16 @@ namespace FoodStreetWeb.Services
             _connectedAt.TryAdd(deviceId, DateTime.UtcNow);
         }
 
+        public string? GetDeviceIdByConnection(string connectionId)
+        {
+            if (string.IsNullOrWhiteSpace(connectionId))
+                return null;
+
+            return _connectionToDevice.TryGetValue(connectionId, out var deviceId)
+                ? deviceId
+                : null;
+        }
+
         public void RemoveConnection(string connectionId)
         {
             if (string.IsNullOrWhiteSpace(connectionId))

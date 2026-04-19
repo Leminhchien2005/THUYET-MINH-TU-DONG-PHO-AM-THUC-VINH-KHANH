@@ -1,4 +1,5 @@
 using FoodStreetWeb.Data;
+using FoodStreetWeb.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,10 +15,12 @@ namespace FoodStreetWeb.Controllers
         };
 
         private readonly AppDbContext _context;
+        private readonly OnlineUsersService _onlineUsersService;
 
-        public ScanAnalyticsController(AppDbContext context)
+        public ScanAnalyticsController(AppDbContext context, OnlineUsersService onlineUsersService)
         {
             _context = context;
+            _onlineUsersService = onlineUsersService;
         }
 
         // 1) Tổng lượt quét + lượt quét theo quán + top quán
@@ -288,6 +291,124 @@ namespace FoodStreetWeb.Controllers
                 DayB = normalizedDayB,
                 DayAHourly = pointsA,
                 DayBHourly = pointsB
+            });
+        }
+
+        // 8) Tổng hợp lưu lượng web + app trong cùng 1 API (xử lý server-side)
+        [HttpGet("traffic-overview")]
+        public async Task<IActionResult> GetTrafficOverview(
+            [FromQuery] int? restaurantId = null,
+            [FromQuery] DateTime? fromUtc = null,
+            [FromQuery] DateTime? toUtc = null)
+        {
+            var from = fromUtc ?? DateTime.UtcNow.AddDays(-6);
+            var to = toUtc ?? DateTime.UtcNow;
+
+            if (to < from)
+            {
+                (from, to) = (to, from);
+            }
+
+            var appQuery = _context.DeviceConnectionHistories
+                .AsNoTracking()
+                .Where(x => x.EventTimeUtc >= from && x.EventTimeUtc <= to)
+                .Where(x => !x.ConnectionId.StartsWith("web:"));
+
+            var webHistoryQuery = _context.DeviceConnectionHistories
+                .AsNoTracking()
+                .Where(x => x.EventTimeUtc >= from && x.EventTimeUtc <= to)
+                .Where(x => x.ConnectionId.StartsWith("web:"));
+
+            var webQuery = _context.OnlineWebPresences
+                .AsNoTracking()
+                .Where(x => x.LastSeenUtc >= from && x.LastSeenUtc <= to);
+
+            if (restaurantId.HasValue)
+            {
+                webQuery = webQuery.Where(x => x.RestaurantId == restaurantId.Value);
+                var suffix = $":{restaurantId.Value}";
+                webHistoryQuery = webHistoryQuery.Where(x => EF.Functions.Like(x.Note ?? string.Empty, $"%{suffix}"));
+            }
+
+            var appConnectCount = await appQuery.CountAsync(x => x.EventType == "connect");
+            var appDisconnectCount = await appQuery.CountAsync(x => x.EventType == "disconnect");
+            var appUniqueDevices = await appQuery.Select(x => x.DeviceId).Distinct().CountAsync();
+
+            var webConnectCount = await webHistoryQuery.CountAsync(x => x.EventType == "connect");
+            var webDisconnectCount = await webHistoryQuery.CountAsync(x => x.EventType == "disconnect");
+
+            int webActiveCount;
+            try
+            {
+                webActiveCount = await _onlineUsersService.GetRestaurantDetailOnlineCountAsync(restaurantId);
+            }
+            catch
+            {
+                var webActiveCutoff = DateTime.UtcNow.AddSeconds(-15);
+                var webActiveQuery = _context.OnlineWebPresences
+                    .AsNoTracking()
+                    .Where(x => x.LastSeenUtc >= webActiveCutoff);
+
+                if (restaurantId.HasValue)
+                {
+                    webActiveQuery = webActiveQuery.Where(x => x.RestaurantId == restaurantId.Value);
+                }
+
+                webActiveCount = await webActiveQuery
+                    .Select(x => x.DeviceId)
+                    .Distinct()
+                    .CountAsync();
+            }
+            var webUniqueDevices = await webHistoryQuery.Select(x => x.DeviceId).Distinct().CountAsync();
+
+            var webByRole = await webQuery
+                .GroupBy(x => x.Role)
+                .Select(g => new { role = g.Key, count = g.Count() })
+                .OrderByDescending(x => x.count)
+                .ToListAsync();
+
+            var appDailyRaw = await appQuery
+                .Where(x => x.EventType == "connect")
+                .GroupBy(x => x.EventTimeUtc.Date)
+                .Select(g => new { date = g.Key, count = g.Count() })
+                .ToListAsync();
+
+            var webDailyRaw = await webHistoryQuery
+                .Where(x => x.EventType == "connect")
+                .GroupBy(x => x.EventTimeUtc.Date)
+                .Select(g => new { date = g.Key, count = g.Count() })
+                .ToListAsync();
+
+            var timeline = Enumerable.Range(0, (to.Date - from.Date).Days + 1)
+                .Select(offset => from.Date.AddDays(offset))
+                .Select(date => new
+                {
+                    date,
+                    appCount = appDailyRaw.FirstOrDefault(x => x.date == date)?.count ?? 0,
+                    webCount = webDailyRaw.FirstOrDefault(x => x.date == date)?.count ?? 0
+                })
+                .ToList();
+
+            return Ok(new
+            {
+                fromUtc = from,
+                toUtc = to,
+                restaurantId,
+                app = new
+                {
+                    connectCount = appConnectCount,
+                    disconnectCount = appDisconnectCount,
+                    uniqueDevices = appUniqueDevices
+                },
+                web = new
+                {
+                    connectCount = webConnectCount,
+                    disconnectCount = webDisconnectCount,
+                    activeCount = webActiveCount,
+                    uniqueDevices = webUniqueDevices,
+                    byRole = webByRole
+                },
+                timeline
             });
         }
 

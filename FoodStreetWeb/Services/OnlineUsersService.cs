@@ -193,6 +193,61 @@ namespace FoodStreetWeb.Services
             if (expired.Count == 0)
                 return;
 
+            var deviceIds = expired
+                .Select(x => x.DeviceId)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct()
+                .ToList();
+
+            var connectionIds = expired
+                .Select(x => $"web:{(string.IsNullOrWhiteSpace(x.TabId) ? "web" : x.TabId)}")
+                .Distinct()
+                .ToList();
+
+            var latestEventByKey = await _dbContext.DeviceConnectionHistories
+                .AsNoTracking()
+                .Where(x => deviceIds.Contains(x.DeviceId) && connectionIds.Contains(x.ConnectionId))
+                .GroupBy(x => new { x.DeviceId, x.ConnectionId })
+                .Select(g => new
+                {
+                    g.Key.DeviceId,
+                    g.Key.ConnectionId,
+                    EventType = g.OrderByDescending(x => x.EventTimeUtc)
+                                 .Select(x => x.EventType)
+                                 .FirstOrDefault()
+                })
+                .ToDictionaryAsync(
+                    x => $"{x.DeviceId}|{x.ConnectionId}",
+                    x => x.EventType ?? string.Empty);
+
+            var timeoutDisconnectEvents = new List<DeviceConnectionHistory>();
+
+            foreach (var item in expired)
+            {
+                var normalizedTabId = string.IsNullOrWhiteSpace(item.TabId) ? "web" : item.TabId;
+                var connectionId = $"web:{normalizedTabId}";
+                var key = $"{item.DeviceId}|{connectionId}";
+
+                latestEventByKey.TryGetValue(key, out var latestEventType);
+
+                if (!string.Equals(latestEventType, "disconnect", StringComparison.OrdinalIgnoreCase))
+                {
+                    timeoutDisconnectEvents.Add(new DeviceConnectionHistory
+                    {
+                        DeviceId = item.DeviceId,
+                        ConnectionId = connectionId,
+                        EventType = "disconnect",
+                        EventTimeUtc = now,
+                        Note = $"timeout:web-detail:{item.RestaurantId}"
+                    });
+                }
+            }
+
+            if (timeoutDisconnectEvents.Count > 0)
+            {
+                _dbContext.DeviceConnectionHistories.AddRange(timeoutDisconnectEvents);
+            }
+
             _dbContext.OnlineWebPresences.RemoveRange(expired);
             if (saveChanges)
             {

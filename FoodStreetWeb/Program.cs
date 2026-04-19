@@ -155,6 +155,19 @@ CREATE TABLE IF NOT EXISTS `OnlineWebPresences` (
     INDEX `IX_OnlineWebPresences_Restaurant_Device_Seen` (`RestaurantId`, `DeviceId`, `LastSeenUtc`)
 );");
 
+    await dbContext.Database.ExecuteSqlRawAsync(@"
+CREATE TABLE IF NOT EXISTS `DeviceConnectionHistories` (
+    `Id` bigint NOT NULL AUTO_INCREMENT,
+    `DeviceId` varchar(191) NOT NULL,
+    `ConnectionId` varchar(191) NOT NULL,
+    `EventType` varchar(32) NOT NULL,
+    `EventTimeUtc` datetime(6) NOT NULL,
+    `Note` longtext NULL,
+    PRIMARY KEY (`Id`),
+    INDEX `IX_DeviceConnectionHistories_EventTimeUtc` (`EventTimeUtc`),
+    INDEX `IX_DeviceConnectionHistories_Device_EventTime` (`DeviceId`, `EventTimeUtc`)
+);");
+
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     string[] roles = { "Admin", "RestaurantOwner" };
     foreach (var role in roles)

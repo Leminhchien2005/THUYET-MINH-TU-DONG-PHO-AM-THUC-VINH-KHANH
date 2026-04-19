@@ -58,14 +58,14 @@
 
 <h3>Dashboard</h3>
 
-<div class="row g-2 mb-3">
+<div class="row mb-3">
     <div class="col-md-3">
         <label class="form-label">Nhà hàng</label>
         <select id="restaurantFilter" class="form-select">
             <option value="">Tất cả</option>
         </select>
     </div>
-
+ 
     <div class="col-md-3">
         <label class="form-label">Từ ngày</label>
         <input id="fromDate" type="date" class="form-control" />
@@ -114,6 +114,43 @@
                 <h6>Top quán</h6>
                 <div id="topRestaurants" class="small"></div>
             </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="card mb-3">
+        <div class="card-body">
+            <h6>Phân tích lưu lượng Web & App</h6>
+
+            <div class="row g-2 mb-2">
+                <div class="col-md-3 d-none">
+                    <div class="border rounded p-2">
+                        <small class="text-muted">App Connect</small>
+                        <div id="trafficAppConnect" class="fw-bold">0</div>
+                    </div>
+                </div>
+                <div class="col-md-3 d-none">
+                    <div class="border rounded p-2">
+                        <small class="text-muted">App Disconnect</small>
+                        <div id="trafficAppDisconnect" class="fw-bold">0</div>
+                    </div>
+                </div>
+                <div class="col-md-3 d-none">
+                    <div class="border rounded p-2">
+                        <small class="text-muted">Web Active</small>
+                        <div id="trafficWebActive" class="fw-bold">0</div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="border rounded p-2">
+                        <small class="text-muted">Thiết bị duy nhất (Web/App)</small>
+                        <div id="trafficUniqueDevices" class="fw-bold">0 / 0</div>
+                    </div>
+                </div>
+            </div>
+
+            <canvas id="trafficChart" height="120"></canvas>
         </div>
     </div>
 </div>
@@ -178,11 +215,86 @@
     </div>
 </div>
 
+<div class="card mb-3">
+    <div class="card-body">
+        <h6>Lịch sử Connect / Disconnect</h6>
+
+        <div class="row g-2 mb-2">
+            <div class="col-md-4 d-none">
+                <label class="form-label">Thiết bị</label>
+                <select id="deviceHistoryFilter" class="form-select">
+                    <option value="">Tất cả thiết bị</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Nguồn</label>
+                <select id="deviceHistorySourceFilter" class="form-select">
+                    <option value="">Tất cả</option>
+                    <option value="app">App</option>
+                    <option value="web">Web</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Từ ngày</label>
+                <input id="deviceHistoryFromDate" type="date" class="form-control" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Đến ngày</label>
+                <input id="deviceHistoryToDate" type="date" class="form-control" />
+            </div>
+            <div class="col-md-2 d-flex align-items-end gap-2">
+                <button id="btnApplyDeviceHistory" class="btn btn-outline-primary">Lọc</button>
+                <button id="btnResetDeviceHistory" class="btn btn-outline-secondary">Reset</button>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+            <small class="text-muted">Tổng bản ghi: <span id="deviceHistoryCount">0</span></small>
+
+            <div class="d-flex align-items-center gap-2">
+                <select id="deviceHistoryPageSize" class="form-select form-select-sm" style="width: auto;">
+                    <option value="10">10</option>
+                    <option value="20" selected>20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+                <label for="deviceHistoryPageSize" class="form-label mb-0 text-muted">/trang</label>
+
+                <button id="btnDeviceHistoryPrev" class="btn btn-sm btn-outline-secondary">←</button>
+                <small id="deviceHistoryPageInfo" class="text-muted">Trang 1 / 1</small>
+                <button id="btnDeviceHistoryNext" class="btn btn-sm btn-outline-secondary">→</button>
+            </div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle" id="deviceHistoryTable">
+                <thead>
+                    <tr>
+                        <th>Thời gian</th>
+                        <th>Thiết bị</th>
+                        <th>Nguồn</th>
+                        <th>Trạng thái</th>
+                        <th class="d-none">ConnectionId</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td colspan="5" class="text-muted text-center">Chưa có dữ liệu</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     const apiBase = '/api/ScanAnalytics';
     const poisApi = '/api/PoisApi';
     const devicePresenceApi = '/api/DevicePresence/online-devices';
+    const deviceHistoryApi = '/api/DevicePresence/history';
+    const deviceHistoryDevicesApi = '/api/DevicePresence/history-devices';
+    const trafficOverviewApi = '/api/ScanAnalytics/traffic-overview';
     const webOnlineApi = '/api/Online/count';
     const webDetailOnlineApi = '/api/Online/web-detail-count';
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -190,13 +302,52 @@
     let timelineChart;
     let hourlyChart;
     let compareChart;
+    let trafficChart;
     let latestOverview = null;
     let latestPatterns = null;
     let latestHeatmap = null;
+    let latestDeviceHistory = null;
+    let latestTrafficOverview = null;
+    let deviceHistoryPage = 1;
+    let deviceHistoryTotalPages = 1;
 
     function fmtDate(value) {
         const d = new Date(value);
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    function fmtDateTimeVn(value) {
+        if (!value) return '';
+
+        const asText = String(value);
+        const hasTimezone = /Z$|[+-]\d{2}:?\d{2}$/.test(asText);
+        const normalized = hasTimezone ? asText : `${asText}Z`;
+        const d = new Date(normalized);
+
+        if (Number.isNaN(d.getTime())) return asText;
+
+        return new Intl.DateTimeFormat('vi-VN', {
+            timeZone: 'Asia/Ho_Chi_Minh',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        }).format(d);
+    }
+
+    function toUtcIsoFromVietnamDate(dateText, endOfDay = false) {
+        if (!dateText) return '';
+
+        const [year, month, day] = dateText.split('-').map(Number);
+        const hour = endOfDay ? 23 : 0;
+        const minute = endOfDay ? 59 : 0;
+        const second = endOfDay ? 59 : 0;
+
+        const utcMs = Date.UTC(year, month - 1, day, hour - 7, minute, second);
+        return new Date(utcMs).toISOString();
     }
 
     function buildQuery(params) {
@@ -212,20 +363,22 @@
         const fromDate = document.getElementById('fromDate').value;
         const toDate = document.getElementById('toDate').value;
 
-        const toUtcIsoFromVietnamDate = (dateText, endOfDay = false) => {
-            if (!dateText) return '';
-
-            const [year, month, day] = dateText.split('-').map(Number);
-            const hour = endOfDay ? 23 : 0;
-            const minute = endOfDay ? 59 : 0;
-            const second = endOfDay ? 59 : 0;
-
-            const utcMs = Date.UTC(year, month - 1, day, hour - 7, minute, second);
-            return new Date(utcMs).toISOString();
-        };
-
         return {
             restaurantId,
+            fromUtc: toUtcIsoFromVietnamDate(fromDate, false),
+            toUtc: toUtcIsoFromVietnamDate(toDate, true)
+        };
+    }
+
+    function getDeviceHistoryFilters() {
+        const deviceId = document.getElementById('deviceHistoryFilter').value;
+        const source = document.getElementById('deviceHistorySourceFilter').value;
+        const fromDate = document.getElementById('deviceHistoryFromDate').value;
+        const toDate = document.getElementById('deviceHistoryToDate').value;
+
+        return {
+            deviceId,
+            source,
             fromUtc: toUtcIsoFromVietnamDate(fromDate, false),
             toUtc: toUtcIsoFromVietnamDate(toDate, true)
         };
@@ -304,6 +457,169 @@
             el.textContent = data.count ?? 0;
         } catch {
             el.textContent = '0';
+        }
+    }
+
+    async function loadDeviceHistoryDeviceOptions() {
+        const select = document.getElementById('deviceHistoryFilter');
+        const selected = select.value;
+
+        try {
+            const filters = getDeviceHistoryFilters();
+            const res = await fetch(`${deviceHistoryDevicesApi}${buildQuery(filters)}`, { cache: 'no-store' });
+            if (!res.ok) return;
+
+            const data = await res.json();
+            const devices = data.devices ?? [];
+
+            select.innerHTML = '<option value="">Tất cả thiết bị</option>';
+            devices.forEach(device => {
+                const opt = document.createElement('option');
+                opt.value = device;
+                opt.textContent = device;
+                select.appendChild(opt);
+            });
+
+            if (selected && devices.includes(selected)) {
+                select.value = selected;
+            }
+        } catch {
+        }
+    }
+
+    async function loadDeviceHistory() {
+        const tableBody = document.querySelector('#deviceHistoryTable tbody');
+        const countEl = document.getElementById('deviceHistoryCount');
+        const pageInfoEl = document.getElementById('deviceHistoryPageInfo');
+        const prevBtn = document.getElementById('btnDeviceHistoryPrev');
+        const nextBtn = document.getElementById('btnDeviceHistoryNext');
+        const pageSize = Number(document.getElementById('deviceHistoryPageSize').value || 20);
+        const filters = getDeviceHistoryFilters();
+
+        try {
+            const res = await fetch(`${deviceHistoryApi}${buildQuery({ ...filters, page: deviceHistoryPage, pageSize, _ts: Date.now() })}`, { cache: 'no-store' });
+            if (!res.ok) {
+                tableBody.innerHTML = '<tr><td colspan="5" class="text-danger text-center">Không tải được dữ liệu</td></tr>';
+                countEl.textContent = '0';
+                pageInfoEl.textContent = 'Trang 1 / 1';
+                prevBtn.disabled = true;
+                nextBtn.disabled = true;
+                latestDeviceHistory = null;
+                return;
+            }
+
+            const data = await res.json();
+            const items = data.items ?? [];
+            latestDeviceHistory = data;
+            countEl.textContent = data.totalCount ?? items.length;
+
+            deviceHistoryPage = data.page ?? 1;
+            deviceHistoryTotalPages = data.totalPages ?? 1;
+            pageInfoEl.textContent = `Trang ${deviceHistoryPage} / ${deviceHistoryTotalPages}`;
+            prevBtn.disabled = deviceHistoryPage <= 1;
+            nextBtn.disabled = deviceHistoryPage >= deviceHistoryTotalPages;
+
+            if (items.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5" class="text-muted text-center">Không có lịch sử theo bộ lọc hiện tại</td></tr>';
+                return;
+            }
+
+            tableBody.innerHTML = items
+                .map(x => {
+                    const eventType = (x.eventType ?? '').toString().toLowerCase();
+                    const badge = eventType === 'connect'
+                        ? '<span class="badge bg-success">Connect</span>'
+                        : '<span class="badge bg-secondary">Disconnect</span>';
+                    const source = (x.source ?? '').toString().toLowerCase() === 'web'
+                        ? '<span class="badge bg-info text-dark">Web</span>'
+                        : '<span class="badge bg-primary">App</span>';
+
+                    return `<tr>
+                        <td>${fmtDateTimeVn(x.eventTimeUtc)}</td>
+                        <td>${x.deviceId ?? ''}</td>
+                        <td>${source}</td>
+                        <td>${badge}</td>
+                        <td class="d-none"><code>${x.connectionId ?? ''}</code></td>
+                    </tr>`;
+                })
+                .join('');
+        } catch {
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-danger text-center">Có lỗi khi tải dữ liệu</td></tr>';
+            countEl.textContent = '0';
+            pageInfoEl.textContent = 'Trang 1 / 1';
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+            latestDeviceHistory = null;
+        }
+    }
+
+    async function loadTrafficOverview() {
+        const renderTrafficChart = (labels, webData, appData) => {
+            if (trafficChart) trafficChart.destroy();
+            trafficChart = new Chart(document.getElementById('trafficChart'), {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Web traffic',
+                            data: webData,
+                            borderColor: '#0ea5e9',
+                            backgroundColor: 'rgba(14,165,233,0.15)',
+                            tension: 0.25,
+                            fill: false
+                        },
+                        {
+                            label: 'App traffic',
+                            data: appData,
+                            borderColor: '#22c55e',
+                            backgroundColor: 'rgba(34,197,94,0.15)',
+                            tension: 0.25,
+                            fill: false
+                        }
+                    ]
+                }
+            });
+        };
+
+        try {
+            const filters = getFilters();
+            const res = await fetch(`${trafficOverviewApi}${buildQuery({ ...filters, _ts: Date.now() })}`, { cache: 'no-store' });
+            if (!res.ok) throw new Error('Traffic API failed');
+
+            const data = await res.json();
+            latestTrafficOverview = data;
+
+            document.getElementById('trafficAppConnect').textContent = data.app?.connectCount ?? 0;
+            document.getElementById('trafficAppDisconnect').textContent = data.app?.disconnectCount ?? 0;
+            document.getElementById('trafficWebActive').textContent = data.web?.activeCount ?? 0;
+            document.getElementById('trafficUniqueDevices').textContent = `${data.web?.uniqueDevices ?? 0} / ${data.app?.uniqueDevices ?? 0}`;
+
+            const labels = (data.timeline ?? []).map(x => fmtDate(x.date));
+            const webData = (data.timeline ?? []).map(x => x.webCount ?? 0);
+            const appData = (data.timeline ?? []).map(x => x.appCount ?? 0);
+            renderTrafficChart(labels, webData, appData);
+        } catch {
+            document.getElementById('trafficAppConnect').textContent = '0';
+            document.getElementById('trafficAppDisconnect').textContent = '0';
+            document.getElementById('trafficWebActive').textContent = '0';
+            document.getElementById('trafficUniqueDevices').textContent = '0 / 0';
+
+            const fromDate = document.getElementById('fromDate').value;
+            const toDate = document.getElementById('toDate').value;
+            const fallbackLabels = [];
+
+            if (fromDate && toDate) {
+                let current = new Date(fromDate);
+                const end = new Date(toDate);
+                while (current <= end) {
+                    fallbackLabels.push(fmtDate(current));
+                    current.setDate(current.getDate() + 1);
+                }
+            }
+
+            const zeroSeries = fallbackLabels.map(() => 0);
+            renderTrafficChart(fallbackLabels, zeroSeries, zeroSeries);
         }
     }
 
@@ -477,6 +793,31 @@
             rows.push([]);
         }
 
+        if (latestDeviceHistory) {
+            rows.push(['Device Connection History']);
+            rows.push(['Id', 'DeviceId', 'ConnectionId', 'EventType', 'EventTimeUtc', 'Note']);
+            (latestDeviceHistory.items ?? []).forEach(x => rows.push([x.id, x.deviceId, x.connectionId, x.eventType, x.eventTimeUtc, x.note ?? '']));
+            rows.push([]);
+        }
+
+        if (latestTrafficOverview) {
+            rows.push(['Web/App Traffic Overview']);
+            rows.push(['AppConnect', 'AppDisconnect', 'AppUniqueDevices', 'WebActive', 'WebUniqueDevices']);
+            rows.push([
+                latestTrafficOverview.app?.connectCount ?? 0,
+                latestTrafficOverview.app?.disconnectCount ?? 0,
+                latestTrafficOverview.app?.uniqueDevices ?? 0,
+                latestTrafficOverview.web?.activeCount ?? 0,
+                latestTrafficOverview.web?.uniqueDevices ?? 0
+            ]);
+            rows.push([]);
+
+            rows.push(['Traffic Timeline']);
+            rows.push(['Date', 'WebCount', 'AppCount']);
+            (latestTrafficOverview.timeline ?? []).forEach(x => rows.push([fmtDate(x.date), x.webCount ?? 0, x.appCount ?? 0]));
+            rows.push([]);
+        }
+
         const csvContent = rows
             .map(cols => cols.map(csvEscape).join(','))
             .join('\n');
@@ -544,8 +885,11 @@
             loadOverview(),
             loadOnlineUsers(),
             loadWebOnlineUsers(),
+            loadTrafficOverview(),
             loadPatterns(),
-            loadHeatmap()
+            loadHeatmap(),
+            loadDeviceHistory(),
+            loadDeviceHistoryDeviceOptions()
         ]);
     }
 
@@ -554,7 +898,8 @@
             loadOverview(),
             loadHeatmap(),
             loadOnlineUsers(),
-            loadWebOnlineUsers()
+            loadWebOnlineUsers(),
+            loadDeviceHistory()
         ]);
     }
 
@@ -568,6 +913,46 @@
     document.getElementById('btnCompare').addEventListener('click', compareDays);
     document.getElementById('btnExportCsv').addEventListener('click', exportCsv);
 
+    document.getElementById('btnApplyDeviceHistory').addEventListener('click', async () => {
+        deviceHistoryPage = 1;
+        await loadDeviceHistoryDeviceOptions();
+        await loadDeviceHistory();
+    });
+
+    document.getElementById('btnResetDeviceHistory').addEventListener('click', async () => {
+        document.getElementById('deviceHistoryFilter').value = '';
+        document.getElementById('deviceHistorySourceFilter').value = '';
+        document.getElementById('deviceHistoryFromDate').value = '';
+        document.getElementById('deviceHistoryToDate').value = '';
+        document.getElementById('deviceHistoryPageSize').value = '20';
+        deviceHistoryPage = 1;
+        await loadDeviceHistoryDeviceOptions();
+        await loadDeviceHistory();
+    });
+
+    document.getElementById('deviceHistorySourceFilter').addEventListener('change', async () => {
+        deviceHistoryPage = 1;
+        await loadDeviceHistoryDeviceOptions();
+        await loadDeviceHistory();
+    });
+
+    document.getElementById('deviceHistoryPageSize').addEventListener('change', async () => {
+        deviceHistoryPage = 1;
+        await loadDeviceHistory();
+    });
+
+    document.getElementById('btnDeviceHistoryPrev').addEventListener('click', async () => {
+        if (deviceHistoryPage <= 1) return;
+        deviceHistoryPage -= 1;
+        await loadDeviceHistory();
+    });
+
+    document.getElementById('btnDeviceHistoryNext').addEventListener('click', async () => {
+        if (deviceHistoryPage >= deviceHistoryTotalPages) return;
+        deviceHistoryPage += 1;
+        await loadDeviceHistory();
+    });
+
     (async function init() {
         const today = new Date();
         const sevenDaysAgo = new Date(today);
@@ -577,11 +962,14 @@
         document.getElementById('toDate').value = fmtDate(today);
         document.getElementById('compareDayA').value = fmtDate(sevenDaysAgo);
         document.getElementById('compareDayB').value = fmtDate(today);
+        document.getElementById('deviceHistoryFromDate').value = fmtDate(sevenDaysAgo);
+        document.getElementById('deviceHistoryToDate').value = fmtDate(today);
 
         await loadRestaurantOptions();
         wireHeatTooltip();
         await refreshAll();
 
         setInterval(refreshOnlineCountersOnly, 2000);
+        setInterval(loadTrafficOverview, 10000);
     })();
 </script>

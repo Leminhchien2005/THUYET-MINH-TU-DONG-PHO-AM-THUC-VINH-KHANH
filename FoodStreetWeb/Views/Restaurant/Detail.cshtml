@@ -43,27 +43,6 @@
             }
         </div>
     }
-
-    @if (ViewBag.HasNearbyRestaurants == true)
-    {
-        <div class="row mt-5">
-            <h3 class="mb-3">Nhà hàng gần đây</h3>
-            @foreach (var nearby in ViewBag.NearbyRestaurants)
-            {
-                <div class="col-md-4 mb-3">
-                    <a href="/restaurant/@nearby.Id/detail" class="text-decoration-none text-dark">
-                        <div class="card h-100">
-                            <img src="@nearby.ImageUrl" class="card-img-top" style="height: 150px; object-fit: cover;" />
-                            <div class="card-body">
-                                <h5 class="card-title">@nearby.Name</h5>
-                                <p class="text-muted mb-0">Khoảng cách: @nearby.DistanceKm.ToString("0.00") km</p>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-            }
-        </div>
-    }
 </div>
 
 

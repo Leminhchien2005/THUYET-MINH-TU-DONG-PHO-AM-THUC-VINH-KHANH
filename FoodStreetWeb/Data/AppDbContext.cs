@@ -26,6 +26,7 @@ namespace FoodStreetWeb.Data
 
         public DbSet<ScanLog> ScanLogs { get; set; }
         public DbSet<OnlineWebPresence> OnlineWebPresences { get; set; }
+        public DbSet<DeviceConnectionHistory> DeviceConnectionHistories { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -47,6 +48,11 @@ namespace FoodStreetWeb.Data
             builder.Entity<OnlineWebPresence>()
                 .HasIndex(x => new { x.RestaurantId, x.DeviceId, x.LastSeenUtc });
 
+            builder.Entity<DeviceConnectionHistory>()
+                .HasIndex(x => x.EventTimeUtc);
+
+            builder.Entity<DeviceConnectionHistory>()
+                .HasIndex(x => new { x.DeviceId, x.EventTimeUtc });
         }
     }
 }

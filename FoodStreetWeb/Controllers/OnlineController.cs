@@ -1,5 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using FoodStreetWeb.Data;
+using FoodStreetWeb.Models;
 using FoodStreetWeb.Services;
+using Microsoft.EntityFrameworkCore;
 
 namespace FoodStreetWeb.Controllers;
 
@@ -8,6 +11,7 @@ namespace FoodStreetWeb.Controllers;
 public class OnlineController : ControllerBase
 {
     private readonly OnlineUsersService _onlineService;
+    private readonly AppDbContext _dbContext;
     private const string DeviceCookieName = "DeviceId";
 
     public class DetailPresenceRequest
@@ -17,9 +21,10 @@ public class OnlineController : ControllerBase
         public string? TabId { get; set; }
     }
 
-    public OnlineController(OnlineUsersService onlineService)
+    public OnlineController(OnlineUsersService onlineService, AppDbContext dbContext)
     {
         _onlineService = onlineService;
+        _dbContext = dbContext;
     }
 
     [HttpGet("count")]
@@ -74,6 +79,8 @@ public class OnlineController : ControllerBase
 
         var isFromQr = Request.Cookies["FromQrVisitor"] == "1";
 
+        var webConnectionId = $"web:{tabId}";
+
         await _onlineService.MarkVisitorOnlineDetailAsync(
             visitorId,
             deviceId,
@@ -82,6 +89,26 @@ public class OnlineController : ControllerBase
             role,
             isFromQr,
             $"/restaurant/{request.RestaurantId}/detail");
+
+        var latestWebEvent = await _dbContext.DeviceConnectionHistories
+            .AsNoTracking()
+            .Where(x => x.DeviceId == deviceId && x.ConnectionId == webConnectionId)
+            .OrderByDescending(x => x.EventTimeUtc)
+            .Select(x => x.EventType)
+            .FirstOrDefaultAsync();
+
+        if (!string.Equals(latestWebEvent, "connect", StringComparison.OrdinalIgnoreCase))
+        {
+            _dbContext.DeviceConnectionHistories.Add(new DeviceConnectionHistory
+            {
+                DeviceId = deviceId,
+                ConnectionId = webConnectionId,
+                EventType = "connect",
+                EventTimeUtc = DateTime.UtcNow,
+                Note = $"web-detail:{request.RestaurantId}"
+            });
+            await _dbContext.SaveChangesAsync();
+        }
 
         return Ok(new { success = true });
     }
@@ -105,11 +132,32 @@ public class OnlineController : ControllerBase
         var visitorId = Request.Cookies["VisitorId"];
         if (!string.IsNullOrWhiteSpace(visitorId) && !string.IsNullOrWhiteSpace(deviceId))
         {
+            var webConnectionId = $"web:{tabId}";
+            var latestWebEvent = await _dbContext.DeviceConnectionHistories
+                .AsNoTracking()
+                .Where(x => x.DeviceId == deviceId && x.ConnectionId == webConnectionId)
+                .OrderByDescending(x => x.EventTimeUtc)
+                .Select(x => x.EventType)
+                .FirstOrDefaultAsync();
+
             await _onlineService.MarkVisitorLeftDetailAsync(
                 visitorId,
                 deviceId,
                 tabId,
                 request.RestaurantId);
+
+            if (string.Equals(latestWebEvent, "connect", StringComparison.OrdinalIgnoreCase))
+            {
+                _dbContext.DeviceConnectionHistories.Add(new DeviceConnectionHistory
+                {
+                    DeviceId = deviceId,
+                    ConnectionId = webConnectionId,
+                    EventType = "disconnect",
+                    EventTimeUtc = DateTime.UtcNow,
+                    Note = $"web-detail:{request.RestaurantId}"
+                });
+                await _dbContext.SaveChangesAsync();
+            }
         }
 
         return Ok(new { success = true });
