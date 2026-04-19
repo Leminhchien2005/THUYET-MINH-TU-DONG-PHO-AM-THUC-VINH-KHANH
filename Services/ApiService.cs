@@ -121,25 +121,34 @@ public class ApiService
             using var client = new HttpClient(handler);
 
             var deviceId = DeviceIdService.GetOrCreateDeviceId();
-            var requestUrl = AppendDeviceIdQuery(qrUrl, deviceId);
+            var currentUrl = AppendDeviceIdQuery(qrUrl, deviceId);
 
-            var response = await client.GetAsync(requestUrl);
-
-            if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
-                return null;
-
-            if ((int)response.StatusCode == 302)
+            for (var i = 0; i < 5; i++)
             {
-                var location = response.Headers.Location?.ToString();
+                var response = await client.GetAsync(currentUrl);
 
-                if (!string.IsNullOrEmpty(location))
+                if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                    return null;
+
+                if (IsRedirectStatusCode(response.StatusCode))
                 {
-                    var parts = location.Split('/');
-                    var idText = parts.Last();
+                    var location = response.Headers.Location;
+                    if (location == null)
+                        return null;
 
-                    if (int.TryParse(idText, out int poiId))
+                    var locationText = location.ToString();
+                    if (TryExtractPoiIdFromRedirectLocation(locationText, out var poiId))
                         return poiId;
+
+                    // Follow intermediate redirect (e.g. http -> https) and try again.
+                    currentUrl = location.IsAbsoluteUri
+                        ? locationText
+                        : new Uri(new Uri(currentUrl), location).ToString();
+
+                    continue;
                 }
+
+                return null;
             }
 
             return null;
@@ -150,6 +159,12 @@ public class ApiService
         }
     }
 
+    private static bool IsRedirectStatusCode(System.Net.HttpStatusCode statusCode)
+    {
+        var code = (int)statusCode;
+        return code >= 300 && code < 400;
+    }
+
     private static string AppendDeviceIdQuery(string url, string deviceId)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -157,5 +172,41 @@ public class ApiService
 
         var separator = url.Contains('?', StringComparison.Ordinal) ? "&" : "?";
         return $"{url}{separator}deviceId={Uri.EscapeDataString(deviceId)}";
+    }
+
+    private static bool TryExtractPoiIdFromRedirectLocation(string location, out int poiId)
+    {
+        poiId = 0;
+
+        if (string.IsNullOrWhiteSpace(location))
+            return false;
+
+        string path = location;
+        if (Uri.TryCreate(location, UriKind.Absolute, out var absoluteUri))
+        {
+            path = absoluteUri.AbsolutePath;
+        }
+        else
+        {
+            var questionIndex = path.IndexOf('?');
+            if (questionIndex >= 0)
+            {
+                path = path[..questionIndex];
+            }
+        }
+
+        var segments = path
+            .Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        for (int i = 0; i < segments.Length - 1; i++)
+        {
+            if (segments[i].Equals("restaurant", StringComparison.OrdinalIgnoreCase)
+                && int.TryParse(segments[i + 1], out poiId))
+            {
+                return true;
+            }
+        }
+
+        return segments.Length > 0 && int.TryParse(segments[^1], out poiId);
     }
 }

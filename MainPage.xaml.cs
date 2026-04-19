@@ -65,6 +65,7 @@ public partial class MainPage : ContentPage
     bool _isInitialized;
     bool _isSyncing;
     string? _lastSyncError;
+    bool _isLabelTrackingEnabled;
 
     private string _pendingPoiId;
 
@@ -75,43 +76,36 @@ public partial class MainPage : ContentPage
         set
         {
             _poiIdQuery = value;
-            if (!string.IsNullOrEmpty(value))
-            {
-                var idToFind = value.Trim();
+            if (string.IsNullOrWhiteSpace(value))
+                return;
 
-                if (!_isInitialized)
-                {
-                    _pendingPoiId = idToFind;
-                }
-                else
-                {
-                    Dispatcher.DispatchAsync(() =>
-                    {
-                        var poi = _poiList.FirstOrDefault(p => p.Id.ToString() == idToFind);
-                        if (poi != null)
-                        {
-                            ShowPoiDetails(poi);
-                        }
-                    });
-                }
+            var idToFind = value.Trim();
+
+            if (!_isInitialized)
+            {
+                _pendingPoiId = idToFind;
+                return;
             }
+
+            _ = Dispatcher.DispatchAsync(async () =>
+            {
+                await ShowPoiFromQrAndSpeakAsync(idToFind);
+            });
         }
     }
 
     private void TryShowPendingPoi()
     {
-        if (!string.IsNullOrEmpty(_pendingPoiId) && _poiList != null)
+        if (string.IsNullOrWhiteSpace(_pendingPoiId) || _poiList == null)
+            return;
+
+        var idToFind = _pendingPoiId;
+        _pendingPoiId = null;
+
+        _ = MainThread.InvokeOnMainThreadAsync(async () =>
         {
-            var poi = _poiList.FirstOrDefault(p => p.Id.ToString() == _pendingPoiId);
-            if (poi != null)
-            {
-                MainThread.BeginInvokeOnMainThread(() =>
-                {
-                    ShowPoiDetails(poi);
-                });
-                _pendingPoiId = null; // Cleared once successful
-            }
-        }
+            await ShowPoiFromQrAndSpeakAsync(idToFind);
+        });
     }
 
     public MainPage()
@@ -193,6 +187,8 @@ public partial class MainPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+
+        StartLabelTracking();
 
         await EnsurePresenceConnectedAsync();
 
@@ -287,8 +283,31 @@ public partial class MainPage : ContentPage
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
+        StopLabelTracking();
         MyMap.SizeChanged -= OnMapSizeChanged;
         MyMap.PropertyChanged -= OnMapPropertyChanged;
+    }
+
+    private void StartLabelTracking()
+    {
+        if (_isLabelTrackingEnabled)
+            return;
+
+        _isLabelTrackingEnabled = true;
+
+        Dispatcher.StartTimer(TimeSpan.FromMilliseconds(120), () =>
+        {
+            if (!_isLabelTrackingEnabled)
+                return false;
+
+            UpdateLabelPositions();
+            return true;
+        });
+    }
+
+    private void StopLabelTracking()
+    {
+        _isLabelTrackingEnabled = false;
     }
 
     private void OnDeviceConnectionStateChanged(bool isOnline)
@@ -1569,5 +1588,23 @@ public partial class MainPage : ContentPage
         }
 
         return food;
+    }
+
+    private async Task ShowPoiFromQrAndSpeakAsync(string poiId)
+    {
+        var poi = _poiList.FirstOrDefault(p => p.Id.ToString() == poiId);
+        if (poi == null)
+            return;
+
+        ShowPoiDetails(poi);
+
+        var textToRead = !string.IsNullOrWhiteSpace(poi.Description)
+            ? poi.Description
+            : poi.Name;
+
+        if (!string.IsNullOrWhiteSpace(textToRead))
+        {
+            await SpeakAsync(textToRead);
+        }
     }
 }
