@@ -3,7 +3,7 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 using FoodStreetGuide.Services;
 using Microsoft.Maui.Controls.Maps;
-
+using Plugin.Maui.Audio;
 
 namespace FoodStreetGuide
 {
@@ -27,6 +27,9 @@ namespace FoodStreetGuide
             builder.Services.AddSingleton<DatabaseService>();
             builder.Services.AddSingleton<DevicePresenceService>();
             builder.Services.AddSingleton<MainPage>();
+
+            // AUDIO
+            builder.Services.AddSingleton(AudioManager.Current);
 
 #if DEBUG
             builder.Logging.AddDebug();

@@ -1,3 +1,4 @@
+using Android.Media.Midi;
 using Android.Net;
 using FoodStreetGuide.Models;
 using FoodStreetGuide.Resources.Strings;
@@ -8,6 +9,8 @@ using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Layouts;
 using Microsoft.Maui.Maps;
 using Microsoft.Maui.Networking;
+using Plugin.Maui.Audio;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Net.Http;
 using System.Text.Json;
@@ -26,6 +29,7 @@ public partial class MainPage : ContentPage
     private Dictionary<int, Pin> _poiPins = new();
     private int? _featuredPoiId;
     private int? _nearestPoiId;
+    private static ConcurrentDictionary<int, SemaphoreSlim> _poiAudioLocks = new();
 
     private List<Poi> _poiList = new();
 
@@ -60,6 +64,8 @@ public partial class MainPage : ContentPage
     const int SPEAK_COOLDOWN_SECONDS = 10; // tránh spam
     private DateTime _lastLocationCheck = DateTime.MinValue;
     double _lastMinDistance = double.MaxValue;
+    private readonly IAudioManager _audioManager = AudioManager.Current;
+    private IAudioPlayer? _audioPlayer;
 
     bool _suppressSearchUpdate;
     bool _isInitialized;
@@ -70,6 +76,12 @@ public partial class MainPage : ContentPage
     private string _pendingPoiId;
 
     private string _poiIdQuery;
+
+    private SemaphoreSlim GetPoiLock(int poiId)
+    {
+        return _poiAudioLocks.GetOrAdd(poiId, _ => new SemaphoreSlim(5));
+        // 5 người nghe cùng lúc / 1 POI
+    }
     public string PoiIdQuery
     {
         get => _poiIdQuery;
@@ -846,14 +858,26 @@ public partial class MainPage : ContentPage
                 _speechCts.Cancel(); // 🔥 thêm dòng này
             }
 
-            string text = BuildSpeakText(nearbyPois);
+            if (nearbyPois.Count == 1)
+            {
+                var poi = nearbyPois.First();
 
-            if (!string.IsNullOrEmpty(text))
+                string text = BuildSpeakText(new List<Poi> { poi });
+
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    _lastNearbyPoiIds = currentIds;
+                    _lastSpeakTime = DateTime.Now;
+
+                    _ = AutoSpeakPoiAsync(poi, text);
+                }
+            }
+            else
             {
                 _lastNearbyPoiIds = currentIds;
                 _lastSpeakTime = DateTime.Now;
 
-                _ = SpeakAsync(text);
+                _ = AutoSpeakNearbyPoisAsync(nearbyPois);
             }
         }
 
@@ -1178,6 +1202,9 @@ public partial class MainPage : ContentPage
         if (_speechCts != null && !_speechCts.IsCancellationRequested)
         {
             _speechCts.Cancel();
+
+            _audioPlayer?.Stop();
+
             return;
         }
 
@@ -1185,39 +1212,84 @@ public partial class MainPage : ContentPage
             ? _selectedPoi.Description
             : (!string.IsNullOrWhiteSpace(_selectedPoi.Name)
                 ? _selectedPoi.Name
-                : AppResources.NoInfo); // 🔥 sửa
+                : AppResources.NoInfo);
 
-        // Bắt đầu phát mới
         _speechCts = new CancellationTokenSource();
-        PlayButton.Text = "⏹️"; // (optional: cho gọn)
+
+        PlayButton.Text = "⏹️";
 
         try
         {
-            var locales = await TextToSpeech.Default.GetLocalesAsync();
-
             var lang = Preferences.Get("lang", "vi");
 
-            // 🔥 FIX: fallback nếu không tìm thấy
-            var locale = locales.FirstOrDefault(l => l.Language.StartsWith(lang))
+            // =========================
+            // ƯU TIÊN AUDIO ONLINE
+            // =========================
+            if (Connectivity.Current.NetworkAccess == NetworkAccess.Internet)
+            {
+                var audioUrl = await _apiService.GetAudioUrlAsync(
+                    _selectedPoi.Id,
+                    lang);
+
+                if (!string.IsNullOrWhiteSpace(audioUrl))
+                {
+                    var tempFile = Path.Combine(
+                        FileSystem.CacheDirectory,
+                        $"audio_{_selectedPoi.Id}_{lang}.m4a");
+
+                    using (var httpClient = new HttpClient())
+                    {
+                        var bytes = await httpClient.GetByteArrayAsync(audioUrl);
+
+                        await File.WriteAllBytesAsync(tempFile, bytes);
+                    }
+
+                    var stream = File.OpenRead(tempFile);
+
+                    _audioPlayer = _audioManager.CreatePlayer(stream);
+
+                    _audioPlayer.Play();
+
+                    // chờ phát xong
+                    while (_audioPlayer.IsPlaying)
+                    {
+                        await Task.Delay(300);
+                    }
+
+                    _audioPlayer.Dispose();
+                    _audioPlayer = null;
+
+                    return;
+                }
+            }
+
+            // =========================
+            // FALLBACK → TTS
+            // =========================
+            var locales = await TextToSpeech.Default.GetLocalesAsync();
+
+            var locale = locales.FirstOrDefault(l =>
+                            l.Language.StartsWith(lang))
                          ?? locales.FirstOrDefault();
 
-            await TextToSpeech.Default.SpeakAsync(textToRead, new SpeechOptions
-            {
-                Volume = (float)Preferences.Get("volume", 1.0),
-                Locale = locale
-            }, cancelToken: _speechCts.Token);
+            await TextToSpeech.Default.SpeakAsync(
+                textToRead,
+                new SpeechOptions
+                {
+                    Volume = (float)Preferences.Get("volume", 1.0),
+                    Locale = locale
+                },
+                cancelToken: _speechCts.Token);
         }
         catch (OperationCanceledException)
         {
-            // bị dừng
         }
         catch (Exception ex)
         {
             await DisplayAlert(
-                AppResources.Error,                      // 🔥 sửa
-                AppResources.TtsError + ex.Message,      // 🔥 sửa
-                "OK"
-            );
+                AppResources.Error,
+                AppResources.TtsError + ex.Message,
+                "OK");
         }
         finally
         {
@@ -1605,6 +1677,220 @@ public partial class MainPage : ContentPage
         if (!string.IsNullOrWhiteSpace(textToRead))
         {
             await SpeakAsync(textToRead);
+        }
+    }
+
+    async Task AutoSpeakPoiAsync(Poi poi, string fallbackText)
+    {
+        var sem = GetPoiLock(poi.Id);
+        await sem.WaitAsync();
+
+        try
+        {
+            // stop speech cũ
+            if (_speechCts != null && !_speechCts.IsCancellationRequested)
+                _speechCts.Cancel();
+
+            _audioPlayer?.Stop();
+            _audioPlayer?.Dispose();
+            _audioPlayer = null;
+
+            _speechCts = new CancellationTokenSource();
+
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                StopAutoSpeakButton.IsVisible = true;
+            });
+
+            var lang = Preferences.Get("lang", "vi");
+
+            if (Connectivity.Current.NetworkAccess == NetworkAccess.Internet)
+            {
+                try
+                {
+                    var audioUrl = await _apiService.GetAudioUrlAsync(poi.Id, lang);
+
+                    if (!string.IsNullOrWhiteSpace(audioUrl))
+                    {
+                        var tempFile = Path.Combine(
+                            FileSystem.CacheDirectory,
+                            $"auto_audio_{poi.Id}_{lang}.m4a");
+
+                        using (var httpClient = new HttpClient())
+                        {
+                            var bytes = await httpClient.GetByteArrayAsync(audioUrl);
+                            await File.WriteAllBytesAsync(tempFile, bytes);
+                        }
+
+                        using var stream = File.OpenRead(tempFile);
+                        _audioPlayer = _audioManager.CreatePlayer(stream);
+
+                        _audioPlayer.Play();
+
+                        while (_audioPlayer.IsPlaying)
+                        {
+                            if (_speechCts.IsCancellationRequested)
+                            {
+                                _audioPlayer.Stop();
+                                break;
+                            }
+
+                            await Task.Delay(300);
+                        }
+
+                        _audioPlayer.Dispose();
+                        _audioPlayer = null;
+
+                        return; // OK vì có finally bảo vệ
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine("AUTO AUDIO ERROR: " + ex.Message);
+                }
+            }
+
+            // fallback TTS
+            await SpeakAsync(fallbackText);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine("AUTO SPEAK ERROR: " + ex.Message);
+        }
+        finally
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                StopAutoSpeakButton.IsVisible = false;
+            });
+
+            sem.Release(); // ✅ luôn chạy an toàn
+        }
+    }
+
+    private async Task AutoSpeakNearbyPoisAsync(List<Poi> pois)
+    {
+        if (pois == null || pois.Count == 0)
+            return;
+
+        // =========================
+        // ĐỌC MỞ ĐẦU
+        // =========================
+        string intro = CurrentLang switch
+        {
+            "en" => pois.Count == 1
+                ? "There is 1 place near you."
+                : $"There are {pois.Count} places near you.",
+
+            "zh" => pois.Count == 1
+                ? "您附近有1个地点。"
+                : $"您附近有{pois.Count}个地点。",
+
+            _ => pois.Count == 1
+                ? "Bạn đang gần 1 địa điểm."
+                : $"Bạn đang gần {pois.Count} địa điểm."
+        };
+
+        await SpeakAsync(intro);
+
+        // =========================
+        // CHỈ ĐỌC TỐI ĐA 3 QUÁN
+        // =========================
+        var topPois = pois.Take(3).ToList();
+
+        foreach (var poi in topPois)
+        {
+            if (!_isAutoSpeakEnabled)
+                return;
+
+            string text = BuildSpeakText(new List<Poi> { poi });
+
+            var sem = GetPoiLock(poi.Id);
+            await sem.WaitAsync(); // 🔥 VÀO HÀNG ĐỢI
+
+            try
+            {
+                var lang = Preferences.Get("lang", "vi");
+
+                // =========================
+                // ƯU TIÊN AUDIO ONLINE
+                // =========================
+                if (Connectivity.Current.NetworkAccess == NetworkAccess.Internet)
+                {
+                    var audioUrl = await _apiService.GetAudioUrlAsync(poi.Id, lang);
+
+                    if (!string.IsNullOrWhiteSpace(audioUrl))
+                    {
+                        var tempFile = Path.Combine(
+                            FileSystem.CacheDirectory,
+                            $"auto_audio_{poi.Id}_{lang}.m4a");
+
+                        using (var httpClient = new HttpClient())
+                        {
+                            var bytes = await httpClient.GetByteArrayAsync(audioUrl);
+                            await File.WriteAllBytesAsync(tempFile, bytes);
+                        }
+
+                        using var stream = File.OpenRead(tempFile);
+
+                        _audioPlayer = _audioManager.CreatePlayer(stream);
+                        _audioPlayer.Play();
+
+                        while (_audioPlayer.IsPlaying)
+                        {
+                            if (!_isAutoSpeakEnabled)
+                            {
+                                _audioPlayer.Stop();
+                                break;
+                            }
+
+                            await Task.Delay(300);
+                        }
+
+                        _audioPlayer.Dispose();
+                        _audioPlayer = null;
+
+                        await Task.Delay(500);
+                    }
+                    else
+                    {
+                        // fallback nếu không có audio
+                        await SpeakAsync(text);
+                    }
+                }
+                else
+                {
+                    // =========================
+                    // OFFLINE → TTS
+                    // =========================
+                    await SpeakAsync(text);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"AUTO SPEAK ERROR: {ex.Message}");
+            }
+            finally
+            {
+                sem.Release(); // 🔥 LUÔN GIẢI PHÓNG QUEUE
+            }
+
+            await Task.Delay(500); // nghỉ giữa các quán
+        }
+
+        // =========================
+        // THÔNG BÁO CÒN QUÁN KHÁC
+        // =========================
+        if (pois.Count > 3)
+        {
+            string remain = CurrentLang switch
+            {
+                "en" => $"And {pois.Count - 3} more places nearby.",
+                "zh" => $"还有{pois.Count - 3}个地点在附近。",
+                _ => $"Và còn {pois.Count - 3} địa điểm khác gần bạn."
+            };
+
+            await SpeakAsync(remain);
         }
     }
 }
