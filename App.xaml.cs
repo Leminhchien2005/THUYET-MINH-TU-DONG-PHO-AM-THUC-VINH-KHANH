@@ -32,6 +32,20 @@ namespace FoodStreetGuide
             base.OnAppLinkRequestReceived(uri);
 
             if (uri.Scheme.Equals("foodstreet", StringComparison.OrdinalIgnoreCase) &&
+                uri.Host.Equals("restaurants", StringComparison.OrdinalIgnoreCase))
+            {
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    if (Application.Current?.MainPage is Shell shell)
+                    {
+                        await shell.GoToAsync("//MainPage");
+                    }
+                });
+
+                return;
+            }
+
+            if (uri.Scheme.Equals("foodstreet", StringComparison.OrdinalIgnoreCase) &&
                 uri.Host.Equals("restaurant", StringComparison.OrdinalIgnoreCase))
             {
                 var id = uri.AbsolutePath.Trim('/');

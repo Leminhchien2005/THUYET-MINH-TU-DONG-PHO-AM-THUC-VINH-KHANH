@@ -3,6 +3,7 @@
     Layout = null;
     var deepLink = $"foodstreet://restaurant/{Model.Id}";
     var webDetailLink = $"/restaurant/{Model.Id}/detail";
+    var tDetailLink = $"/restaurant/tdetail?selectedId={Model.Id}";
 }
 
 <!DOCTYPE html>
@@ -59,7 +60,8 @@
 
         <!-- Các nút bấm thủ công -->
         <a href="@deepLink" class="btn btn-app">📱 Mở trong ứng dụng (App)</a>
-        <a href="@webDetailLink" class="btn btn-web">🌐 Xem trên Website</a>
+        <a href="@tDetailLink" class="btn btn-web">🌐 Xem TDetail (tất cả nhà hàng)</a>
+        <a href="@webDetailLink" class="btn btn-web">📄 Xem chi tiết quán này</a>
     </div>
 
     <script>
@@ -81,9 +83,9 @@
                     // Nếu (current - start) chỉ loanh quanh thời gian setup (vd: < 3000ms),
                     // nghĩa là trình duyệt chưa từng bị đẩy vào background -> App không mở được.
                     if (current - start < 3000) {
-                        statusMessage.innerText = "❌ Không tìm thấy ứng dụng, đang chuyển hướng sang web...";
+                        statusMessage.innerText = "❌ Không tìm thấy ứng dụng, đang chuyển sang website...";
                         statusMessage.style.color = "#868e96";
-                        // Fallback: Chuyển hướng sang Web detail
+                        // Fallback: Chuyển hướng sang TDetail (all restaurants)
                         window.location.href = webFallbackLink;
                     }
                 }, 2500);

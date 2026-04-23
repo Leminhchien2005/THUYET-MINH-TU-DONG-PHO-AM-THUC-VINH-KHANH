@@ -124,6 +124,24 @@ namespace FoodStreetWeb.Controllers
             return View("Detail", restaurant);
         }
 
+        [HttpGet("restaurant/tdetail")]
+        public async Task<IActionResult> TDetail(string? deeplink = null, int? selectedId = null)
+        {
+            var restaurants = await _context.Pois
+                .AsNoTracking()
+                .Where(p => p.Status == PoiStatus.Approved)
+                .OrderByDescending(p => p.Priority)
+                .ThenBy(p => p.Name)
+                .ToListAsync();
+
+            ViewBag.DeepLink = string.IsNullOrWhiteSpace(deeplink)
+                ? "foodstreet://restaurants/tdetail"
+                : deeplink;
+            ViewBag.SelectedId = selectedId;
+
+            return View(restaurants);
+        }
+
         private static double CalculateDistanceKm(double lat1, double lon1, double lat2, double lon2)
         {
             const double earthRadiusKm = 6371;

@@ -1,0 +1,161 @@
+﻿@model IEnumerable<FoodStreetWeb.Models.Poi>
+@{
+    ViewData["Title"] = "TDetail - Danh sách nhà hàng";
+    var deepLink = (string?)ViewBag.DeepLink ?? "foodstreet://restaurants/tdetail";
+    var selectedId = ViewBag.SelectedId as int?;
+}
+
+<style>
+    .tdetail-page {
+        max-width: 1080px;
+        margin: 0 auto;
+    }
+
+    .tdetail-hero {
+        border-radius: 14px;
+        padding: 18px;
+        background: linear-gradient(135deg, #fff2e8 0%, #fff 100%);
+        border: 1px solid #ffe0cc;
+    }
+
+    .tdetail-selected {
+        border: 2px solid #f97316 !important;
+        box-shadow: 0 0 0 0.15rem rgba(249, 115, 22, .15);
+    }
+
+    .restaurant-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 14px;
+    }
+
+    .restaurant-card {
+        border: 1px solid #e9ecef;
+        border-radius: 12px;
+        background: #fff;
+        padding: 14px;
+        transition: transform .15s ease, box-shadow .15s ease;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .restaurant-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0,0,0,.08);
+    }
+
+    .restaurant-card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 0;
+        line-height: 1.35;
+    }
+
+    .restaurant-card-desc {
+        color: #6c757d;
+        margin: 0;
+        min-height: 42px;
+    }
+
+    .restaurant-card-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .restaurant-card-image {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 10px;
+        background: #f1f3f5;
+    }
+</style>
+
+<div class="tdetail-page">
+<div class="tdetail-hero mb-3">
+    <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2">
+        <div>
+            <h3 class="mb-1">Tất cả nhà hàng</h3>
+            <div class="text-muted">Mở bằng app nếu có, hoặc xem danh sách tại đây.</div>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-primary" id="openAppBtn" href="@deepLink">Mở bằng app</a>
+            <a class="btn btn-outline-secondary" href="/">Trang chủ</a>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-info py-2 d-flex justify-content-between align-items-center">
+    <span>Tổng số nhà hàng: <strong>@(Model?.Count() ?? 0)</strong></span>
+    @if (selectedId.HasValue)
+    {
+        <span>Đang tô sáng quán từ QR: <strong>#@selectedId.Value</strong></span>
+    }
+</div>
+
+@if (Model == null || !Model.Any())
+{
+    <div class="text-center text-muted py-4">Không có nhà hàng</div>
+}
+else
+{
+    <div class="restaurant-grid">
+        @{
+            var index = 1;
+        }
+        @foreach (var item in Model)
+        {
+            var isSelected = selectedId.HasValue && selectedId.Value == item.Id;
+            <div class="restaurant-card @(isSelected ? "tdetail-selected" : string.Empty)">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <h5 class="restaurant-card-title">@item.Name</h5>
+                    <span class="badge bg-light text-dark border">#@index</span>
+                </div>
+
+                <img class="restaurant-card-image"
+                     src="@item.ImageUrl"
+                     alt="@item.Name" />
+
+                <p class="restaurant-card-desc">@(string.IsNullOrWhiteSpace(item.Description) ? "Chưa có mô tả" : item.Description)</p>
+
+                <div class="restaurant-card-actions">
+                    <a class="btn btn-sm btn-outline-primary" href="/restaurant/@item.Id/detail">
+                        Xem chi tiết
+                    </a>
+                    <a class="btn btn-sm btn-outline-danger" href="foodstreet://restaurant/@item.Id">
+                        Mở app
+                    </a>
+                </div>
+            </div>
+            index++;
+        }
+    </div>
+}
+</div>
+
+<script>
+    (function () {
+        const deepLink = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(deepLink));
+        const ua = navigator.userAgent || '';
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(ua);
+
+        if (!isMobile) {
+            return;
+        }
+
+        const started = Date.now();
+
+        try {
+            window.location.href = deepLink;
+        } catch {
+        }
+
+        setTimeout(function () {
+            if (Date.now() - started < 1800) {
+                // vẫn ở lại trang web TDetail để xem all restaurants
+            }
+        }, 1200);
+    })();
+</script>

@@ -14,6 +14,10 @@ namespace FoodStreetGuide;
               Categories = new[] { Android.Content.Intent.CategoryDefault, Android.Content.Intent.CategoryBrowsable },
               DataScheme = "foodstreet",
               DataHost = "restaurant")]
+[IntentFilter(new[] { Android.Content.Intent.ActionView },
+              Categories = new[] { Android.Content.Intent.CategoryDefault, Android.Content.Intent.CategoryBrowsable },
+              DataScheme = "foodstreet",
+              DataHost = "restaurants")]
 public class MainActivity : MauiAppCompatActivity
 {
     protected override void OnCreate(Bundle? savedInstanceState)
@@ -35,6 +39,24 @@ public class MainActivity : MauiAppCompatActivity
         if (data != null)
         {
             var uri = new Uri(data.ToString());
+
+            if (uri.Host.Equals("restaurants", StringComparison.OrdinalIgnoreCase))
+            {
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    if (Microsoft.Maui.Controls.Application.Current?.MainPage is Shell shell)
+                    {
+                        await shell.GoToAsync("//MainPage");
+                    }
+                    else if (Microsoft.Maui.Controls.Application.Current != null)
+                    {
+                        Microsoft.Maui.Controls.Application.Current.MainPage = new AppShell();
+                        await Shell.Current.GoToAsync("//MainPage");
+                    }
+                });
+
+                return;
+            }
 
             var segments = uri.Segments;
 

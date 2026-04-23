@@ -1195,5 +1195,37 @@ var foods = await _context.Foods
             }
         }
 
+        public IActionResult GenerateTDetailQr()
+        {
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+            var url = $"{baseUrl}/restaurant/tdetail?deeplink={Uri.EscapeDataString("foodstreet://restaurants/tdetail")}";
+
+            using (QRCodeGenerator qrGenerator = new QRCodeGenerator())
+            {
+                var qrData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q);
+
+                var qrCode = new PngByteQRCode(qrData);
+                byte[] qrBytes = qrCode.GetGraphic(25);
+
+                return File(qrBytes, "image/png");
+            }
+        }
+
+        public IActionResult DownloadTDetailQr()
+        {
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+            var url = $"{baseUrl}/restaurant/tdetail?deeplink={Uri.EscapeDataString("foodstreet://restaurants/tdetail")}";
+
+            using (QRCodeGenerator qrGenerator = new QRCodeGenerator())
+            {
+                var qrData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.Q);
+
+                var qrCode = new PngByteQRCode(qrData);
+                byte[] qrBytes = qrCode.GetGraphic(25);
+
+                return File(qrBytes, "image/png", "QR_TDetail.png");
+            }
+        }
+
     }
 }

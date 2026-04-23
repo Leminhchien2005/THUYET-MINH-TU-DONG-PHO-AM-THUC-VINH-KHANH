@@ -6,6 +6,10 @@
     + Thêm quán
 </a>
 
+<button type="button" class="btn btn-info mb-3 ms-2" onclick="openTDetailQr()">
+    QR
+</button>
+
 <form method="get" class="mb-3">
 
     @if (User.IsInRole("Admin"))
@@ -82,7 +86,7 @@
                 <td>
                     <a asp-action="Edit" asp-route-id="@item.Id">Sửa</a> |
                     <a asp-action="Delete" asp-route-id="@item.Id">Xóa</a> |
-                    <button class="btn btn-info btn-sm"
+                    <button class="btn btn-info btn-sm d-none"
                             onclick="openQr(@item.Id)">
                         QR
                     </button>
@@ -123,6 +127,17 @@
     </div>
 </div>
 <script>
+    function openTDetailQr() {
+        let img = document.getElementById("qrImage");
+
+        img.src = '/Pois/GenerateTDetailQr?t=' + new Date().getTime();
+
+        document.getElementById("downloadBtn").href =
+            '/Pois/DownloadTDetailQr';
+
+        document.getElementById("qrModal").style.display = "block";
+    }
+
     function openQr(id) {
         let img = document.getElementById("qrImage");
 
