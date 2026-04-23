@@ -51,6 +51,7 @@
                         @if (User.Identity.IsAuthenticated && User.IsInRole("Admin"))
                         {
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Admin" asp-action="AdminDashboard">Dashboard</a></li>
+                            <li class="nav-item"><a class="nav-link text-dark" asp-controller="Admin" asp-action="OnlineDeviceZones">Thiết bị online theo nhà hàng</a></li>
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Pois" asp-action="AdminRequests">Duyệt yêu cầu quán</a></li>
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Pois" asp-action="Index">Quản lý quán</a></li>
                             <li class="nav-item"><a class="nav-link text-dark" asp-controller="Admin" asp-action="ManageUsers">Quản lý tài khoản</a></li>

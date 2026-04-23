@@ -41,6 +41,139 @@ namespace FoodStreetWeb.Controllers
             return Ok(new { deviceId, online = _onlineDeviceStore.IsOnline(deviceId) });
         }
 
+        [HttpPost("enter-zone")]
+        public IActionResult EnterZone([FromBody] EnterZoneRequest request)
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.DeviceId))
+                return BadRequest(new { ok = false });
+
+            var normalizedDeviceId = request.DeviceId.Trim();
+            if (!_onlineDeviceStore.IsOnline(normalizedDeviceId))
+                return Ok(new { ok = true });
+
+            var restaurantIds = (request.RestaurantIds ?? new List<int>())
+                .Append(request.RestaurantId)
+                .Where(x => x > 0)
+                .Distinct()
+                .ToList();
+
+            if (restaurantIds.Count == 0)
+                return BadRequest(new { ok = false });
+
+            _onlineDeviceStore.UpdateDeviceZone(normalizedDeviceId, restaurantIds);
+            return Ok(new { ok = true });
+        }
+
+        [HttpGet("online-device-zones")]
+        public async Task<IActionResult> GetOnlineDeviceZones([FromQuery] int take = 200)
+        {
+            take = Math.Clamp(take, 1, 1000);
+
+            var now = DateTime.UtcNow;
+            var webCutoff = now.AddSeconds(-15);
+
+            var appOnline = _onlineDeviceStore.GetOnlineDevices()
+                .Select(x => new OnlineDeviceZoneRow
+                {
+                    DeviceId = x.DeviceId,
+                    Source = "app",
+                    LastSeenUtc = x.ConnectedAtUtc
+                })
+                .ToList();
+
+            var appZones = _onlineDeviceStore.GetDeviceZones();
+
+            var latestWebPresence = await _dbContext.OnlineWebPresences
+                .AsNoTracking()
+                .Where(x => x.LastSeenUtc >= webCutoff)
+                .GroupBy(x => x.DeviceId)
+                .Select(g => g
+                    .OrderByDescending(x => x.LastSeenUtc)
+                    .Select(x => new LatestDeviceRestaurantSeen
+                    {
+                        DeviceId = x.DeviceId,
+                        RestaurantId = x.RestaurantId,
+                        SeenAtUtc = x.LastSeenUtc
+                    })
+                    .FirstOrDefault()!)
+                .ToListAsync();
+
+            var restaurantIds = appZones.Values
+                .SelectMany(x => x.RestaurantIds)
+                .Concat(latestWebPresence.Where(x => x != null).Select(x => x!.RestaurantId))
+                .Distinct()
+                .ToList();
+
+            var poiNames = restaurantIds.Count == 0
+                ? new Dictionary<int, string>()
+                : await _dbContext.Pois
+                    .AsNoTracking()
+                    .Where(x => restaurantIds.Contains(x.Id))
+                    .Select(x => new { x.Id, x.Name })
+                    .ToDictionaryAsync(x => x.Id, x => x.Name ?? $"POI #{x.Id}");
+
+            var appRows = appOnline.Select(x =>
+            {
+                appZones.TryGetValue(x.DeviceId, out var zone);
+                var zoneRestaurantIds = zone?.RestaurantIds?.ToList() ?? new List<int>();
+
+                return zoneRestaurantIds.Select(restaurantId => new OnlineDeviceZoneRow
+                {
+                    DeviceId = x.DeviceId,
+                    Source = x.Source,
+                    RestaurantId = restaurantId,
+                    RestaurantName = poiNames.TryGetValue(restaurantId, out var name)
+                        ? name
+                        : "-",
+                    LastSeenUtc = zone?.UpdatedAtUtc ?? x.LastSeenUtc
+                });
+            })
+            .SelectMany(x => x)
+            .Where(x => x.RestaurantId > 0);
+
+            var webRows = latestWebPresence
+                .Where(x => x != null)
+                .Select(x => new OnlineDeviceZoneRow
+                {
+                    DeviceId = x!.DeviceId,
+                    Source = "web",
+                    RestaurantId = x.RestaurantId,
+                    RestaurantName = poiNames.TryGetValue(x.RestaurantId, out var name) ? name : "-",
+                    LastSeenUtc = x.SeenAtUtc
+                });
+
+            var items = appRows
+                .Concat(webRows)
+                .OrderByDescending(x => x.LastSeenUtc)
+                .Take(take)
+                .ToList();
+
+            return Ok(new { count = items.Count, items });
+        }
+
+        private class LatestDeviceRestaurantSeen
+        {
+            public string DeviceId { get; set; } = string.Empty;
+            public int RestaurantId { get; set; }
+            public DateTime SeenAtUtc { get; set; }
+        }
+
+        private class OnlineDeviceZoneRow
+        {
+            public string DeviceId { get; set; } = string.Empty;
+            public string Source { get; set; } = string.Empty;
+            public int? RestaurantId { get; set; }
+            public string RestaurantName { get; set; } = "-";
+            public DateTime LastSeenUtc { get; set; }
+        }
+
+        public class EnterZoneRequest
+        {
+            public string DeviceId { get; set; } = string.Empty;
+            public int RestaurantId { get; set; }
+            public List<int> RestaurantIds { get; set; } = new();
+        }
+
         [HttpGet("history")]
         public async Task<IActionResult> GetConnectionHistory(
             [FromQuery] string? deviceId,

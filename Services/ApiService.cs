@@ -1,4 +1,5 @@
 ﻿using FoodStreetGuide.Models;
+using System.Net.Http.Json;
 using System.Text.Json;
 
 namespace FoodStreetGuide.Services;
@@ -14,6 +15,36 @@ public class ApiService
             BaseAddress = new Uri("https://foodstreetweb-sfecqdx26a-as.a.run.app"),
             Timeout = TimeSpan.FromSeconds(30)
         };
+    }
+
+    public Task ReportEnterPoiZoneAsync(int poiId)
+    {
+        return ReportEnterPoiZoneAsync(new[] { poiId });
+    }
+
+    public async Task ReportEnterPoiZoneAsync(IEnumerable<int> poiIds)
+    {
+        var ids = poiIds?
+            .Where(x => x > 0)
+            .Distinct()
+            .ToList() ?? new List<int>();
+
+        if (ids.Count == 0)
+            return;
+
+        try
+        {
+            var deviceId = DeviceIdService.GetOrCreateDeviceId();
+            await _httpClient.PostAsJsonAsync("api/DevicePresence/enter-zone", new
+            {
+                DeviceId = deviceId,
+                RestaurantId = ids[0],
+                RestaurantIds = ids
+            });
+        }
+        catch
+        {
+        }
     }
 
     public async Task<int?> GetFeaturedRestaurantIdAsync(int days = 7)

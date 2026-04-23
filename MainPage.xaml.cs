@@ -829,6 +829,11 @@ public partial class MainPage : ContentPage
         // ✅ CHỈ check POI MỚI (không phải reorder)
         bool hasNewPoi = currentIds.Except(_lastNearbyPoiIds).Any();
 
+        if (nearbyPois.Count > 0 && hasNewPoi)
+        {
+            _ = _apiService.ReportEnterPoiZoneAsync(nearbyPois.Select(p => p.Id).ToList());
+        }
+
         // =======================
         // CHECK COOLDOWN
         // =======================
@@ -1285,7 +1290,11 @@ public partial class MainPage : ContentPage
         var allItems = query.ToList();
         var nearbyItems = allItems
             .Where(p => p.DistanceKm <= (p.Radius / 1000.0))
-            .OrderBy(p => p.DistanceKm)
+            .OrderByDescending(p => p.Priority)
+            .ThenBy(p => p.DistanceKm)
+            .ThenByDescending(p => p.Radius)
+            .ThenByDescending(p => !string.IsNullOrEmpty(p.Description))
+            .ThenBy(p => p.Id)
             .ToList();
 
         UpdateNearestPoiHighlight();

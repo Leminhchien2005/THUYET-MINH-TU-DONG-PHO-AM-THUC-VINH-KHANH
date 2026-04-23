@@ -28,6 +28,11 @@ namespace FoodStreetWeb.Controllers
             return View();
         }
 
+        public IActionResult OnlineDeviceZones()
+        {
+            return View();
+        }
+
         // =============================
         // Danh sách tài khoản + SEARCH
         // =============================

@@ -7,6 +7,7 @@ namespace FoodStreetWeb.Services
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _deviceConnections = new();
         private readonly ConcurrentDictionary<string, string> _connectionToDevice = new();
         private readonly ConcurrentDictionary<string, DateTime> _connectedAt = new();
+        private readonly ConcurrentDictionary<string, DeviceZoneState> _deviceZones = new();
 
         public void Register(string connectionId, string deviceId)
         {
@@ -61,8 +62,31 @@ namespace FoodStreetWeb.Services
                 {
                     _deviceConnections.TryRemove(deviceId, out _);
                     _connectedAt.TryRemove(deviceId, out _);
+                    _deviceZones.TryRemove(deviceId, out _);
                 }
             }
+        }
+
+        public void UpdateDeviceZone(string deviceId, int restaurantId)
+        {
+            UpdateDeviceZone(deviceId, new[] { restaurantId });
+        }
+
+        public void UpdateDeviceZone(string deviceId, IEnumerable<int> restaurantIds)
+        {
+            if (string.IsNullOrWhiteSpace(deviceId) || restaurantIds == null)
+                return;
+
+            _deviceZones[deviceId] = new DeviceZoneState
+            {
+                RestaurantIds = restaurantIds.Where(x => x > 0).Distinct().ToHashSet(),
+                UpdatedAtUtc = DateTime.UtcNow
+            };
+        }
+
+        public IReadOnlyDictionary<string, DeviceZoneState> GetDeviceZones()
+        {
+            return _deviceZones.ToDictionary(x => x.Key, x => x.Value);
         }
 
         public IReadOnlyList<OnlineDeviceInfo> GetOnlineDevices()
@@ -93,6 +117,12 @@ namespace FoodStreetWeb.Services
             public string DeviceId { get; set; } = string.Empty;
             public DateTime ConnectedAtUtc { get; set; }
             public int ConnectionCount { get; set; }
+        }
+
+        public class DeviceZoneState
+        {
+            public HashSet<int> RestaurantIds { get; set; } = new();
+            public DateTime UpdatedAtUtc { get; set; }
         }
     }
 }

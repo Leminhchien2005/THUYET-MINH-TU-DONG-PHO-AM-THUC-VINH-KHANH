@@ -1,0 +1,141 @@
+@{
+    ViewData["Title"] = "Thiết bị online theo nhà hàng";
+}
+
+<h3>Thiết bị online theo vùng nhà hàng (POI)</h3>
+
+<div class="alert alert-info py-2">
+    Danh sách hiển thị thiết bị đang online (app/web) và nhà hàng gần nhất thiết bị vào vùng.
+</div>
+
+<div class="table-responsive">
+    <table class="table table-sm table-striped align-middle" id="onlineDeviceZonesTable">
+        <thead>
+            <tr>
+                <th>Thời gian gần nhất (VN)</th>
+                <th>DeviceId</th>
+                <th>Nguồn</th>
+                <th>POI ID</th>
+                <th>Tên nhà hàng</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td colspan="5" class="text-muted text-center">Đang tải...</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    function fmtDateTimeVn(value) {
+        if (!value) return '';
+
+        const asText = String(value);
+        const hasTimezone = /Z$|[+-]\d{2}:?\d{2}$/.test(asText);
+        const normalized = hasTimezone ? asText : `${asText}Z`;
+        const d = new Date(normalized);
+
+        if (Number.isNaN(d.getTime())) return asText;
+
+        return new Intl.DateTimeFormat('vi-VN', {
+            timeZone: 'Asia/Ho_Chi_Minh',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        }).format(d);
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#39;');
+    }
+
+    function groupDeviceRows(items) {
+        const groups = new Map();
+
+        for (const item of items ?? []) {
+            const key = String(item.deviceId ?? '');
+            if (!groups.has(key)) {
+                groups.set(key, []);
+            }
+
+            groups.get(key).push(item);
+        }
+
+        return Array.from(groups.entries()).map(([deviceId, rows]) => ({
+            deviceId,
+            rows,
+            lastSeenUtc: rows[0]?.lastSeenUtc,
+            sources: [...new Set(rows.map(x => (x.source ?? '').toLowerCase()).filter(Boolean))]
+        }));
+    }
+
+    function renderPoiCells(rows, field, highlightFirst = false) {
+        return rows.map((x, index) => {
+            const isTop = highlightFirst && index === 0;
+            const cls = isTop ? 'badge bg-warning text-dark' : 'badge bg-light text-dark border';
+            const value = field === 'restaurantId'
+                ? (x.restaurantId ?? '')
+                : (x.restaurantName ?? '-');
+
+            return `<div class="mb-1">
+                <span class="${cls}">${isTop ? 'Ưu tiên đầu' : '#' + (index + 1)}</span>
+                <span class="ms-2">${escapeHtml(value)}</span>
+            </div>`;
+        }).join('');
+    }
+
+    async function loadOnlineDeviceZones() {
+        const tbody = document.querySelector('#onlineDeviceZonesTable tbody');
+
+        try {
+            const res = await fetch('/api/DevicePresence/online-device-zones?take=300', { cache: 'no-store' });
+            if (!res.ok) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-danger text-center">Không tải được dữ liệu</td></tr>';
+                return;
+            }
+
+            const data = await res.json();
+            const items = data.items ?? [];
+
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-muted text-center">Không có thiết bị online</td></tr>';
+                return;
+            }
+
+            const groupedItems = groupDeviceRows(items);
+
+            tbody.innerHTML = groupedItems.map(group => {
+                const sourceBadges = group.sources.length > 0
+                    ? group.sources.map(source => source === 'web'
+                        ? '<span class="badge bg-info text-dark me-1">Web</span>'
+                        : '<span class="badge bg-primary me-1">App</span>').join('')
+                    : '<span class="badge bg-secondary">-</span>';
+
+                return `<tr>
+                    <td>${fmtDateTimeVn(group.lastSeenUtc)}</td>
+                    <td><code>${escapeHtml(group.deviceId)}</code></td>
+                    <td>${sourceBadges}</td>
+                    <td>${renderPoiCells(group.rows, 'restaurantId', true)}</td>
+                    <td>${renderPoiCells(group.rows, 'restaurantName', true)}</td>
+                </tr>`;
+            }).join('');
+        } catch {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-danger text-center">Có lỗi khi tải dữ liệu</td></tr>';
+        }
+    }
+
+    (async function init() {
+        await loadOnlineDeviceZones();
+        setInterval(loadOnlineDeviceZones, 3000);
+    })();
+</script>
