@@ -13,6 +13,7 @@ public class ApiService
         _httpClient = new HttpClient
         {
             BaseAddress = new Uri("https://foodstreetweb-sfecqdx26a-as.a.run.app"),
+            //BaseAddress = new Uri("http://10.0.2.2:8080"),
             Timeout = TimeSpan.FromSeconds(30)
         };
     }
@@ -239,5 +240,24 @@ public class ApiService
         }
 
         return segments.Length > 0 && int.TryParse(segments[^1], out poiId);
+    }
+
+    public async Task<string?> GetAudioUrlAsync(
+        int poiId,
+        string lang)
+    {
+        try
+        {
+            var response = await _httpClient.GetAsync($"api/audio/{poiId}/{lang}");
+
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            return await response.Content.ReadAsStringAsync();
+        }
+        catch
+        {
+            return null;
+        }
     }
 }

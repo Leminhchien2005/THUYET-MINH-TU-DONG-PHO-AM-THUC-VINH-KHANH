@@ -28,6 +28,8 @@ namespace FoodStreetWeb.Data
         public DbSet<OnlineWebPresence> OnlineWebPresences { get; set; }
         public DbSet<DeviceConnectionHistory> DeviceConnectionHistories { get; set; }
 
+        public DbSet<AudioTranslation> AudioTranslations { get; set; }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
