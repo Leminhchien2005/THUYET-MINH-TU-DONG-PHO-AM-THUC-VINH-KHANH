@@ -1,8 +1,132 @@
-﻿@{
-    ViewData["Title"] = "Home Page";
+@{
+    ViewData["Title"] = "Tai ung dung";
+
+    var appDownloadUrl = "https://github.com/Leminhchien2005/THUYET-MINH-TU-DONG-PHO-AM-THUC-VINH-KHANH/releases/download/v1.0.0/foodstreetguide.apk";
+
+    using var qrGenerator = new QRCoder.QRCodeGenerator();
+    using var qrData = qrGenerator.CreateQrCode(appDownloadUrl, QRCoder.QRCodeGenerator.ECCLevel.Q);
+    var qrCode = new QRCoder.SvgQRCode(qrData);
+    var qrSvg = qrCode.GetGraphic(8);
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
-</div>
+<style>
+    .download-page {
+        min-height: calc(100vh - 160px);
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 360px;
+        gap: 32px;
+        align-items: center;
+        padding: 56px 0;
+    }
+
+    .download-title {
+        max-width: 760px;
+        font-size: clamp(2.35rem, 5vw, 4.75rem);
+        font-weight: 800;
+        line-height: 1;
+        color: #172033;
+    }
+
+    .download-copy {
+        max-width: 640px;
+        margin-top: 20px;
+        color: #516070;
+        font-size: 1.1rem;
+    }
+
+    .download-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 28px;
+    }
+
+    .download-card {
+        border: 1px solid #dfe5ec;
+        border-radius: 8px;
+        padding: 20px;
+        background: #fff;
+        box-shadow: 0 18px 50px rgba(23, 32, 51, .10);
+    }
+
+    .qr-frame {
+        border: 1px solid #e7ebf0;
+        border-radius: 8px;
+        padding: 14px;
+        background: #fff;
+    }
+
+    .qr-frame svg {
+        display: block;
+        width: 100%;
+        height: auto;
+    }
+
+    .download-url {
+        overflow-wrap: anywhere;
+        font-size: .84rem;
+        color: #617080;
+    }
+
+    .download-checks {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 36px;
+        max-width: 760px;
+    }
+
+    .download-check {
+        border-left: 3px solid #0d6efd;
+        padding: 10px 12px;
+        background: #f7f9fc;
+        color: #324153;
+        font-size: .95rem;
+    }
+
+    @@media (max-width: 900px) {
+        .download-page {
+            grid-template-columns: 1fr;
+            padding: 32px 0;
+        }
+
+        .download-card {
+            max-width: 360px;
+        }
+
+        .download-checks {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<section class="download-page">
+    <div>
+        <p class="text-uppercase text-primary fw-semibold mb-3">FoodStreet Guide Android</p>
+        <h1 class="download-title">Tai app tham quan am thuc tren dien thoai</h1>
+        <p class="download-copy">
+            Quet ma QR hoac bam Tai de tai APK.
+        </p>
+
+        <div class="download-actions">
+            <a class="btn btn-primary btn-lg" href="@appDownloadUrl" rel="noopener">
+                Tai APK
+            </a>
+            <a class="btn btn-outline-secondary btn-lg" href="@appDownloadUrl" rel="noopener">
+                Mo WebSite
+            </a>
+        </div>
+
+        <div class="download-checks">
+            <div class="download-check">Link tai tu GitHub Releases</div>
+            <div class="download-check">Cho phep cai dat tu trinh duyet tren Android</div>
+        </div>
+    </div>
+
+    <aside class="download-card">
+        <div class="qr-frame">
+            @Html.Raw(qrSvg)
+        </div>
+        <h2 class="h5 mt-3 mb-2">Quet de tai APK</h2>
+    </aside>
+</section>
