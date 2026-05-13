@@ -6,22 +6,32 @@ using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+using FoodStreetWeb.Hubs;
+using Microsoft.AspNetCore.SignalR;
 
 namespace FoodStreetWeb.Controllers
 {
+    [Route("[controller]")]
+    [Route("api/[controller]")]
     public class RestaurantController : Controller
     {
         private readonly ILogger<RestaurantController> _logger;
         private readonly AppDbContext _context;
+        private readonly IHubContext<ScanHub> _hubContext;
 
-        public RestaurantController(ILogger<RestaurantController> logger, AppDbContext context)
+        public RestaurantController(
+            ILogger<RestaurantController> logger,
+            AppDbContext context,
+            IHubContext<ScanHub> hubContext)
         {
             _logger = logger;
             _context = context;
+            _hubContext = hubContext;
         }
 
         [HttpGet("restaurant/{id}")]
-        public async Task<IActionResult> Index(int id)
+        [HttpGet("{id}")]
+        public async Task<IActionResult> Index(int id, [FromQuery] bool scanLogged = false, [FromQuery] string? deviceId = null)
         {
             _logger.LogInformation("QR Code scanned for restaurant: {RestaurantId}, IP: {IP}, UserAgent: {UserAgent}",
                 id, HttpContext.Connection.RemoteIpAddress, Request.Headers["User-Agent"]);
@@ -32,6 +42,24 @@ namespace FoodStreetWeb.Controllers
 
             if (restaurant == null)
                 return NotFound("Không tìm thấy quán.");
+
+            if (!scanLogged)
+            {
+                var normalizedDeviceId = string.IsNullOrWhiteSpace(deviceId)
+                    ? Request.Cookies["DeviceId"] ?? "web-visitor"
+                    : deviceId.Trim();
+
+                _context.ScanLogs.Add(new ScanLog
+                {
+                    DeviceId = normalizedDeviceId,
+                    RestaurantId = id,
+                    ScanTime = DateTime.UtcNow
+                });
+
+                await _context.SaveChangesAsync();
+
+                await BroadcastScanEventAsync(id, restaurant.Name, normalizedDeviceId);
+            }
 
             // Lấy bản dịch theo ngôn ngữ hiện tại (nếu có)
             var langCode = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
@@ -51,6 +79,7 @@ namespace FoodStreetWeb.Controllers
             return View("Landing", restaurantData);
         }
 
+        [HttpGet("{id}/detail")]
         [HttpGet("restaurant/{id}/detail")]
         public async Task<IActionResult> WebDetail(int id, string lang = null)
         {
@@ -124,9 +153,29 @@ namespace FoodStreetWeb.Controllers
             return View("Detail", restaurant);
         }
 
+        [HttpGet("tdetail")]
         [HttpGet("restaurant/tdetail")]
-        public async Task<IActionResult> TDetail(string? deeplink = null, int? selectedId = null)
+        public async Task<IActionResult> TDetail(string? deeplink = null, int? selectedId = null, string? qr = null)
         {
+            if (string.Equals(qr, "tdetail", StringComparison.OrdinalIgnoreCase))
+            {
+                var deviceId = Request.Headers["X-Device-Id"].FirstOrDefault();
+                if (string.IsNullOrWhiteSpace(deviceId))
+                {
+                    deviceId = Request.Cookies["DeviceId"] ?? "web-visitor";
+                }
+
+                _context.ScanLogs.Add(new ScanLog
+                {
+                    DeviceId = deviceId.Trim(),
+                    RestaurantId = 0,
+                    ScanTime = DateTime.UtcNow
+                });
+                await _context.SaveChangesAsync();
+
+                await BroadcastScanEventAsync(0, "QR danh sách quán", deviceId.Trim());
+            }
+
             var restaurants = await _context.Pois
                 .AsNoTracking()
                 .Where(p => p.Status == PoiStatus.Approved)
@@ -159,6 +208,30 @@ namespace FoodStreetWeb.Controllers
         private static double ToRadians(double degrees)
             => degrees * Math.PI / 180;
 
+        private async Task BroadcastScanEventAsync(int restaurantId, string? restaurantName, string deviceId)
+        {
+            try
+            {
+                var scanEvent = new
+                {
+                    restaurantId,
+                    restaurantName = restaurantName ?? "Unknown",
+                    scanTime = DateTime.UtcNow,
+                    deviceId,
+                    language = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName,
+                    audioUrl = (string?)null,
+                    crowdStatus = "updated"
+                };
+
+                await _hubContext.Clients.Group("all-scans").SendAsync("OnScanReceived", scanEvent);
+                await _hubContext.Clients.Group($"restaurant-{restaurantId}").SendAsync("OnScanReceived", scanEvent);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "SignalR broadcast failed for restaurant scan {RestaurantId}", restaurantId);
+            }
+        }
+
         [HttpGet("test-cookie")]
         public IActionResult TestCookie()
         {
@@ -166,5 +239,45 @@ namespace FoodStreetWeb.Controllers
             var culture = CultureInfo.CurrentUICulture.Name;
             return Content($"Cookie: {cookie ?? "null"}\nCurrentUICulture: {culture}");
         }
+
+        [HttpPost("log-narration-listen")]
+        public async Task<IActionResult> LogNarrationListen([FromBody] NarrationListenLogRequest request)
+        {
+            if (request == null || request.RestaurantId <= 0)
+                return BadRequest("Invalid restaurant ID");
+
+            try
+            {
+                var language = string.IsNullOrWhiteSpace(request.Language) ? "vi" : request.Language;
+                var deviceId = string.IsNullOrWhiteSpace(request.DeviceId) ? "unknown-device" : request.DeviceId.Trim();
+
+                var narrationLog = new NarrationLog
+                {
+                    RestaurantId = request.RestaurantId,
+                    PoiId = request.RestaurantId,
+                    Language = language,
+                    DeviceId = deviceId,
+                    ListenTime = DateTime.UtcNow,  // Lưu dưới dạng UTC
+                    CreatedUtc = DateTime.UtcNow
+                };
+
+                _context.NarrationLogs.Add(narrationLog);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Error logging narration listen: {ex.Message}");
+                return StatusCode(500, "Error logging narration");
+            }
+        }
+    }
+
+    public class NarrationListenLogRequest
+    {
+        public int RestaurantId { get; set; }
+        public string Language { get; set; } = "vi";
+        public string DeviceId { get; set; } = "unknown-device";
     }
 }

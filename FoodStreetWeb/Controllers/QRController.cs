@@ -1,6 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using FoodStreetWeb.Data;
 using FoodStreetWeb.Models;
+using FoodStreetWeb.Hubs;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using QRCoder;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -12,20 +15,27 @@ namespace FoodStreetWeb.Controllers
     public class QRController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IHubContext<ScanHub> _hubContext;
         private const bool EnforceSingleUseQr = false;
         private const bool EnforceQrExpiration = false;
 
-        public QRController(AppDbContext context)
+        public QRController(AppDbContext context, IHubContext<ScanHub> hubContext)
         {
             _context = context;
+            _hubContext = hubContext;
         }
 
         // =======================================
         // TẠO QR MỚI
         // =======================================
         [HttpPost("generate")]
-        public IActionResult GenerateQR()
+        public IActionResult GenerateQR([FromQuery] int poiId)
         {
+            // Kiểm tra poi có tồn tại không
+            var poi = _context.Pois.FirstOrDefault(x => x.Id == poiId);
+            if (poi == null)
+                return BadRequest("Nhà hàng không tồn tại");
+
             var code = Guid.NewGuid().ToString("N");
 
             var now = GetVietnamNow();
@@ -33,6 +43,7 @@ namespace FoodStreetWeb.Controllers
             var qr = new QRCodeEntity
             {
                 Code = code,
+                PoiId = poiId,  // Set PoiId từ parameter
                 ExpireAt = now.AddMinutes(30)
             };
 
@@ -54,7 +65,7 @@ namespace FoodStreetWeb.Controllers
         // SCAN QR
         // =======================================
         [HttpGet("redeem/{code}")]
-        public IActionResult RedeemQR(string code, [FromQuery] string? deviceId = null)
+        public async Task<IActionResult> RedeemQR(string code, [FromQuery] string? deviceId = null, [FromQuery] string? language = "vi")
         {
             var qr = _context.QRCodes.FirstOrDefault(x => x.Code == code);
 
@@ -75,17 +86,76 @@ namespace FoodStreetWeb.Controllers
                 qr.UsedAt = now;
             }
 
-            // Lưu scan log để dashboard phân tích đông/vắng theo thời gian.
+            // Lưu scan log với UTC time để lọc đúng theo ngày
             _context.ScanLogs.Add(new ScanLog
             {
                 DeviceId = string.IsNullOrWhiteSpace(deviceId) ? "unknown-device" : deviceId.Trim(),
                 RestaurantId = qr.PoiId,
-                ScanTime = now
+                ScanTime = DateTime.UtcNow  // Lưu dưới dạng UTC
             });
+
+            // 🎙️ LOG NARRATION PLAYBACK
+            try
+            {
+                var poi = await _context.Pois.FirstOrDefaultAsync(p => p.Id == qr.PoiId);
+                var audio = poi != null 
+                    ? await _context.AudioTranslations.FirstOrDefaultAsync(a => 
+                        a.PoiId == qr.PoiId && a.LanguageCode == language)
+                    : null;
+
+                // Nếu có audio, log lần nghe thuyết minh
+                if (audio != null && !string.IsNullOrWhiteSpace(audio.AudioUrl))
+                {
+                    _context.NarrationLogs.Add(new NarrationLog
+                    {
+                        RestaurantId = qr.PoiId,
+                        PoiId = qr.PoiId,
+                        Language = language ?? "vi",
+                        DeviceId = string.IsNullOrWhiteSpace(deviceId) ? "unknown-device" : deviceId.Trim(),
+                        ListenTime = DateTime.UtcNow,  // Lưu dưới dạng UTC
+                        CreatedUtc = DateTime.UtcNow
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error logging narration: {ex.Message}");
+            }
 
             _context.SaveChanges();
 
-            return Redirect($"/restaurant/{qr.PoiId}");
+            // 🔥 BROADCAST SCAN EVENT + NARRATION DATA IN REAL-TIME
+            try
+            {
+                // Lấy thông tin quán và thuyết minh âm thanh
+                var poi = await _context.Pois.FirstOrDefaultAsync(p => p.Id == qr.PoiId);
+                var audio = poi != null 
+                    ? await _context.AudioTranslations.FirstOrDefaultAsync(a => 
+                        a.PoiId == qr.PoiId && a.LanguageCode == language)
+                    : null;
+
+                var scanEvent = new
+                {
+                    restaurantId = qr.PoiId,
+                    restaurantName = poi?.Name ?? "Unknown",
+                    scanTime = now,
+                    deviceId = deviceId ?? "unknown-device",
+                    language = language ?? "vi",
+                    audioUrl = audio?.AudioUrl ?? null,
+                    crowdStatus = "updated" // Để notify front-end cần refresh heatmap
+                };
+
+                // Broadcast to all subscribers (both web and app)
+                await _hubContext.Clients.Group("all-scans").SendAsync("OnScanReceived", scanEvent);
+                await _hubContext.Clients.Group($"restaurant-{qr.PoiId}").SendAsync("OnScanReceived", scanEvent);
+            }
+            catch (Exception ex)
+            {
+                // SignalR not critical for operation, continue if it fails
+                System.Diagnostics.Debug.WriteLine($"SignalR broadcast failed: {ex.Message}");
+            }
+
+            return Redirect($"/restaurant/{qr.PoiId}?scanLogged=true");
         }
 
         private static DateTime GetVietnamNow()

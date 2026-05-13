@@ -56,7 +56,9 @@ namespace FoodStreetWeb.Controllers
             var byRestaurant = byRestaurantRaw.Select(x => new RestaurantScanCountDto
             {
                 RestaurantId = x.RestaurantId,
-                RestaurantName = names.TryGetValue(x.RestaurantId, out var name) ? name : $"Restaurant #{x.RestaurantId}",
+                RestaurantName = x.RestaurantId == 0
+                    ? "QR danh sách quán"
+                    : names.TryGetValue(x.RestaurantId, out var name) ? name : $"Restaurant #{x.RestaurantId}",
                 Count = x.Count
             }).ToList();
 
@@ -433,15 +435,9 @@ namespace FoodStreetWeb.Controllers
 
         private static DateTime? NormalizeFilterToScanTime(DateTime? value)
         {
-            if (!value.HasValue)
-                return null;
-
-            return value.Value.Kind switch
-            {
-                DateTimeKind.Utc => value.Value.AddHours(7),
-                DateTimeKind.Unspecified => value.Value,
-                _ => value.Value
-            };
+            // Filter từ client đã là UTC format, chỉ cần trả về nguyên giá trị
+            // (ScanTime trong DB cũng lưu dưới dạng UTC)
+            return value;
         }
 
         private static int ToDotNetDayOfWeek(int monToSunIndex)
@@ -541,6 +537,103 @@ namespace FoodStreetWeb.Controllers
             public DateTime? ToUtc { get; set; }
             public int Threshold { get; set; }
             public List<HeatmapPointDto> Points { get; set; } = new();
+        }
+
+        // 9) Thống kê thuyết minh (narration stats)
+        [HttpGet("narration-stats")]
+        public async Task<IActionResult> GetNarrationStats(
+            [FromQuery] int? restaurantId = null,
+            [FromQuery] DateTime? fromUtc = null,
+            [FromQuery] DateTime? toUtc = null)
+        {
+            var from = NormalizeFilterToScanTime(fromUtc);
+            var to = NormalizeFilterToScanTime(toUtc);
+
+            var query = _context.NarrationLogs.AsNoTracking().AsQueryable();
+
+            if (restaurantId.HasValue)
+                query = query.Where(x => x.RestaurantId == restaurantId.Value);
+
+            if (from.HasValue)
+                query = query.Where(x => x.ListenTime >= from.Value);
+
+            if (to.HasValue)
+                query = query.Where(x => x.ListenTime <= to.Value);
+
+            var totalNarrations = await query.CountAsync();
+
+            // By restaurant
+            var byRestaurantRaw = await query
+                .GroupBy(x => x.RestaurantId)
+                .Select(g => new
+                {
+                    RestaurantId = g.Key,
+                    Count = g.Count()
+                })
+                .OrderByDescending(x => x.Count)
+                .ToListAsync();
+
+            var restaurantIds = byRestaurantRaw.Select(x => x.RestaurantId).ToList();
+
+            var names = await _context.Pois
+                .AsNoTracking()
+                .Where(x => restaurantIds.Contains(x.Id))
+                .Select(x => new { x.Id, x.Name })
+                .ToDictionaryAsync(x => x.Id, x => x.Name ?? $"Restaurant #{x.Id}");
+
+            var byRestaurant = byRestaurantRaw.Select(x => new
+            {
+                RestaurantId = x.RestaurantId,
+                RestaurantName = names.TryGetValue(x.RestaurantId, out var name) ? name : $"Restaurant #{x.RestaurantId}",
+                Count = x.Count
+            }).ToList();
+
+            // By language
+            var byLanguage = await query
+                .GroupBy(x => x.Language)
+                .Select(g => new
+                {
+                    Language = g.Key,
+                    Count = g.Count()
+                })
+                .ToListAsync();
+
+            // Timeline
+            var timeline = await query
+                .GroupBy(x => x.ListenTime.Date)
+                .Select(g => new
+                {
+                    Date = g.Key,
+                    Count = g.Count()
+                })
+                .OrderBy(x => x.Date)
+                .ToListAsync();
+
+            // Hourly
+            var hourly = await query
+                .GroupBy(x => x.ListenTime.Hour)
+                .Select(g => new { Hour = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            var hourlyFilled = Enumerable.Range(0, 24)
+                .Select(hour => new
+                {
+                    Hour = hour,
+                    Count = hourly.FirstOrDefault(x => x.Hour == hour)?.Count ?? 0
+                })
+                .ToList();
+
+            return Ok(new
+            {
+                totalNarrations,
+                restaurantId,
+                fromUtc = from,
+                toUtc = to,
+                byRestaurant,
+                byLanguage,
+                timeline,
+                hourly = hourlyFilled
+            });
         }
 
         public class CompareDaysResponse

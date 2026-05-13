@@ -125,6 +125,7 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 app.MapControllers();
 app.MapHub<DevicePresenceHub>("/hubs/device-presence");
+app.MapHub<ScanHub>("/scanhub");
 
 // Tạo Role mặc định
 using (var scope = app.Services.CreateScope())

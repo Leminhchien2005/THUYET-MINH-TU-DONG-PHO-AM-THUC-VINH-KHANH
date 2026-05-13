@@ -4,9 +4,11 @@ namespace FoodStreetWeb.Services
 {
     public class OnlineDeviceStore
     {
+        private static readonly TimeSpan HeartbeatTimeout = TimeSpan.FromSeconds(30);
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> _deviceConnections = new();
         private readonly ConcurrentDictionary<string, string> _connectionToDevice = new();
         private readonly ConcurrentDictionary<string, DateTime> _connectedAt = new();
+        private readonly ConcurrentDictionary<string, DateTime> _heartbeatLastSeen = new();
         private readonly ConcurrentDictionary<string, DeviceZoneState> _deviceZones = new();
 
         public void Register(string connectionId, string deviceId)
@@ -31,9 +33,13 @@ namespace FoodStreetWeb.Services
 
         public void TouchHeartbeat(string deviceId)
         {
-            // Giữ lại method để tương thích API heartbeat cũ.
             if (string.IsNullOrWhiteSpace(deviceId)) return;
-            _connectedAt.TryAdd(deviceId, DateTime.UtcNow);
+
+            var normalizedDeviceId = deviceId.Trim();
+            var now = DateTime.UtcNow;
+
+            _heartbeatLastSeen[normalizedDeviceId] = now;
+            _connectedAt.TryAdd(normalizedDeviceId, now);
         }
 
         public string? GetDeviceIdByConnection(string connectionId)
@@ -91,7 +97,9 @@ namespace FoodStreetWeb.Services
 
         public IReadOnlyList<OnlineDeviceInfo> GetOnlineDevices()
         {
-            return _deviceConnections
+            CleanupExpiredHeartbeats();
+
+            var socketDevices = _deviceConnections
                 .Select(x => new OnlineDeviceInfo
                 {
                     DeviceId = x.Key,
@@ -100,6 +108,25 @@ namespace FoodStreetWeb.Services
                         ? connectedAt
                         : DateTime.UtcNow
                 })
+                .ToList();
+
+            var socketDeviceIds = socketDevices
+                .Select(x => x.DeviceId)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var heartbeatDevices = _heartbeatLastSeen
+                .Where(x => !socketDeviceIds.Contains(x.Key))
+                .Select(x => new OnlineDeviceInfo
+                {
+                    DeviceId = x.Key,
+                    ConnectionCount = 1,
+                    ConnectedAtUtc = _connectedAt.TryGetValue(x.Key, out var connectedAt)
+                        ? connectedAt
+                        : x.Value
+                });
+
+            return socketDevices
+                .Concat(heartbeatDevices)
                 .OrderBy(x => x.DeviceId)
                 .ToList();
         }
@@ -109,7 +136,28 @@ namespace FoodStreetWeb.Services
             if (string.IsNullOrWhiteSpace(deviceId))
                 return false;
 
-            return _deviceConnections.TryGetValue(deviceId, out var connections) && !connections.IsEmpty;
+            CleanupExpiredHeartbeats();
+
+            return (_deviceConnections.TryGetValue(deviceId, out var connections) && !connections.IsEmpty)
+                || _heartbeatLastSeen.ContainsKey(deviceId);
+        }
+
+        private void CleanupExpiredHeartbeats()
+        {
+            var cutoff = DateTime.UtcNow - HeartbeatTimeout;
+            foreach (var item in _heartbeatLastSeen)
+            {
+                if (item.Value >= cutoff)
+                    continue;
+
+                _heartbeatLastSeen.TryRemove(item.Key, out _);
+
+                if (!_deviceConnections.ContainsKey(item.Key))
+                {
+                    _connectedAt.TryRemove(item.Key, out _);
+                    _deviceZones.TryRemove(item.Key, out _);
+                }
+            }
         }
 
         public class OnlineDeviceInfo

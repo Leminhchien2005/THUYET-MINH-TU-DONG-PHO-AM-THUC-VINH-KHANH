@@ -1,0 +1,178 @@
+<!-- Web Narration Listener Component -->
+<!-- Thêm vào Restaurant/TDetail.cshtml hoặc Restaurant/Landing.cshtml -->
+
+<script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@latest/signalr.min.js"></script>
+
+<script>
+    let narrationHubConnection = null;
+    let currentRestaurantId = @Model.Id; // Lấy restaurant ID từ model
+    let narrationPlayer = null;
+
+    /**
+     * Khởi tạo kết nối với ScanHub để nghe thuyết minh
+     * Gọi khi page load
+     */
+    async function initNarrationListener() {
+        try {
+            narrationHubConnection = new signalR.HubConnectionBuilder()
+                .withUrl('/scanhub', {
+                    withCredentials: true
+                })
+                .withAutomaticReconnect([0, 0, 0, 1000, 3000, 5000])
+                .build();
+
+            // Listen for scan events with narration
+            narrationHubConnection.on('OnScanReceived', async (data) => {
+                console.log('🎙️ Narration event received:', data);
+
+                // Nếu đây là nhà hàng hiện tại, phát thuyết minh
+                if (data.restaurantId == currentRestaurantId && data.audioUrl) {
+                    await playNarration(data.restaurantName, data.audioUrl, data.language);
+                }
+            });
+
+            narrationHubConnection.onreconnected(async (connectionId) => {
+                console.log('✅ Narration listener reconnected');
+                await subscribeToRestaurantScans(currentRestaurantId);
+            });
+
+            await narrationHubConnection.start();
+            console.log('🔌 Narration listener connected');
+
+            // Subscribe để nhận events từ nhà hàng này
+            await subscribeToRestaurantScans(currentRestaurantId);
+        } catch (err) {
+            console.error('❌ Failed to initialize narration listener:', err);
+        }
+    }
+
+    /**
+     * Subscribe để nhận sự kiện scan từ một nhà hàng cụ thể
+     */
+    async function subscribeToRestaurantScans(restaurantId) {
+        try {
+            if (!narrationHubConnection || narrationHubConnection.state !== signalR.HubConnectionState.Connected) {
+                return;
+            }
+
+            await narrationHubConnection.invoke('Subscribe', restaurantId.toString());
+            console.log(`✅ Subscribed to narration events for restaurant: ${restaurantId}`);
+        } catch (err) {
+            console.error('Failed to subscribe to restaurant scans:', err);
+        }
+    }
+
+    /**
+     * Phát thuyết minh âm thanh
+     */
+    async function playNarration(restaurantName, audioUrl, language = 'vi') {
+        try {
+            console.log(`🎙️ Playing narration: ${restaurantName} (${language})`);
+
+            // Show notification
+            showNarrationNotification(`Thuyết minh: ${restaurantName}`);
+
+            // Stop previous audio if playing
+            if (narrationPlayer) {
+                narrationPlayer.pause();
+            }
+
+            // Create and play new audio
+            narrationPlayer = new Audio(audioUrl);
+            narrationPlayer.volume = 0.5; // Set volume to 50%
+            await narrationPlayer.play();
+
+            narrationPlayer.onended = () => {
+                console.log('✓ Narration finished');
+                hideNarrationNotification();
+            };
+
+            narrationPlayer.onerror = () => {
+                console.error('Error playing narration');
+                hideNarrationNotification();
+            };
+        } catch (err) {
+            console.error('Error playing narration:', err);
+        }
+    }
+
+    /**
+     * Hiển thị notification khi phát thuyết minh
+     */
+    function showNarrationNotification(message) {
+        let notification = document.getElementById('narrationNotification');
+        if (!notification) {
+            notification = document.createElement('div');
+            notification.id = 'narrationNotification';
+            notification.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 20px;
+                background: #4CAF50;
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+                z-index: 9999;
+                font-size: 14px;
+            `;
+            document.body.appendChild(notification);
+        }
+        notification.textContent = message;
+        notification.style.display = 'block';
+    }
+
+    /**
+     * Ẩn notification
+     */
+    function hideNarrationNotification() {
+        const notification = document.getElementById('narrationNotification');
+        if (notification) {
+            notification.style.display = 'none';
+        }
+    }
+
+    /**
+     * Cleanup khi page unload
+     */
+    async function cleanupNarrationListener() {
+        if (narrationPlayer) {
+            narrationPlayer.pause();
+            narrationPlayer = null;
+        }
+
+        if (narrationHubConnection) {
+            try {
+                await narrationHubConnection.stop();
+            } catch (err) {
+                console.warn('Error stopping narration listener:', err);
+            }
+        }
+
+        narrationHubConnection = null;
+    }
+
+    // Initialize when page loads
+    window.addEventListener('load', initNarrationListener);
+
+    // Cleanup when page unloads
+    window.addEventListener('beforeunload', cleanupNarrationListener);
+</script>
+
+<style>
+    /* Styles cho narration notification */
+    #narrationNotification {
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateX(-400px);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+</style>

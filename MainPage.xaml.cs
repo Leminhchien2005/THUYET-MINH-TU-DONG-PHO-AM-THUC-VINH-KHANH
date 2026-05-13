@@ -1227,6 +1227,9 @@ public partial class MainPage : ContentPage
         {
             var lang = Preferences.Get("lang", "vi");
 
+            // Log narration listen event
+            await LogNarrationListenAsync(_selectedPoi.Id, lang);
+
             // =========================
             // ƯU TIÊN AUDIO ONLINE
             // =========================
@@ -1305,6 +1308,38 @@ public partial class MainPage : ContentPage
             }
 
             PlayButton.Text = "📢";
+        }
+    }
+
+    private async Task LogNarrationListenAsync(int restaurantId, string language = "vi")
+    {
+        try
+        {
+            using (var httpClient = new HttpClient())
+            {
+                var deviceId = $"{DeviceInfo.Model}_{Guid.NewGuid().ToString().Substring(0, 8)}";
+                var json = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    restaurantId,
+                    language,
+                    deviceId
+                });
+
+                var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+                var baseUrl = Preferences.Get("api_url", "http://localhost");
+                var response = await httpClient.PostAsync(
+                    $"{baseUrl}/api/restaurant/log-narration-listen",
+                    content);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Failed to log narration: {response.StatusCode}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error logging narration: {ex.Message}");
         }
     }
 

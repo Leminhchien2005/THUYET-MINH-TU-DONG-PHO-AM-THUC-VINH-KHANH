@@ -25,6 +25,7 @@ namespace FoodStreetWeb.Data
         public DbSet<QRCodeEntity> QRCodes { get; set; }
 
         public DbSet<ScanLog> ScanLogs { get; set; }
+        public DbSet<NarrationLog> NarrationLogs { get; set; }
         public DbSet<OnlineWebPresence> OnlineWebPresences { get; set; }
         public DbSet<DeviceConnectionHistory> DeviceConnectionHistories { get; set; }
 
@@ -40,6 +41,12 @@ namespace FoodStreetWeb.Data
 
             builder.Entity<ScanLog>()
                 .HasIndex(x => x.ScanTime);
+
+            builder.Entity<NarrationLog>()
+                .HasIndex(x => new { x.RestaurantId, x.ListenTime });
+
+            builder.Entity<NarrationLog>()
+                .HasIndex(x => x.ListenTime);
 
             builder.Entity<OnlineWebPresence>()
                 .HasKey(x => x.PresenceId);

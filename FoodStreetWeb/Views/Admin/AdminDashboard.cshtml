@@ -2,60 +2,6 @@
     ViewData["Title"] = "Admin Dashboard";
 }
 
-<style>
-    .heatmap-wrap {
-        position: relative;
-    }
-
-    .heat-cell {
-        min-width: 52px;
-        transition: transform .08s ease, box-shadow .15s ease;
-        cursor: default;
-    }
-
-    .heat-cell:hover {
-        transform: scale(1.03);
-        box-shadow: inset 0 0 0 2px rgba(0,0,0,.12);
-    }
-
-    .heat-legend {
-        display: flex;
-        gap: 8px;
-        align-items: center;
-        flex-wrap: wrap;
-    }
-
-    .heat-legend-item {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 12px;
-        color: #495057;
-    }
-
-    .heat-legend-swatch {
-        width: 16px;
-        height: 16px;
-        border-radius: 4px;
-        border: 1px solid rgba(0,0,0,.08);
-    }
-
-    #heatTooltip {
-        position: fixed;
-        pointer-events: none;
-        display: none;
-        z-index: 1050;
-        background: #1f2937;
-        color: #fff;
-        border-radius: 8px;
-        padding: 8px 10px;
-        font-size: 12px;
-        line-height: 1.35;
-        box-shadow: 0 10px 24px rgba(0,0,0,.25);
-        max-width: 240px;
-    }
-</style>
-
 <h3>Dashboard</h3>
 
 <div class="row mb-3">
@@ -87,16 +33,8 @@
     <div class="col-md-3">
         <div class="card">
             <div class="card-body">
-                <div class="text-muted">Số người online trên app</div>
-                <div id="onlineUsers" style="font-size: 28px; font-weight: bold;">0</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card">
-            <div class="card-body">
-                <div class="text-muted">Số người đang truy cập web</div>
-                <div id="webOnlineUsers" style="font-size: 28px; font-weight: bold;">0</div>
+                <div class="text-muted">Số người online</div>
+                <div id="totalOnlineUsers" style="font-size: 28px; font-weight: bold;">0</div>
             </div>
         </div>
     </div>
@@ -111,17 +49,24 @@
     <div class="col-md-3">
         <div class="card">
             <div class="card-body">
-                <h6>Top quán</h6>
-                <div id="topRestaurants" class="small"></div>
+                <div class="text-muted">Tổng lượt nghe thuyết minh</div>
+                <div id="totalNarrations" style="font-size: 28px; font-weight: bold;">0</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6>Top 3 quán dẫn đầu</h6>
+                <div id="topNarrationsRestaurants" class="small"></div>
             </div>
         </div>
     </div>
 </div>
-
 <div class="row">
     <div class="card mb-3">
         <div class="card-body">
-            <h6>Phân tích lưu lượng Web & App</h6>
+            <h6>Phân tích lưu lượng</h6>
 
             <div class="row g-2 mb-2">
                 <div class="col-md-3 d-none">
@@ -140,12 +85,6 @@
                     <div class="border rounded p-2">
                         <small class="text-muted">Web Active</small>
                         <div id="trafficWebActive" class="fw-bold">0</div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="border rounded p-2">
-                        <small class="text-muted">Thiết bị duy nhất (Web/App)</small>
-                        <div id="trafficUniqueDevices" class="fw-bold">0 / 0</div>
                     </div>
                 </div>
             </div>
@@ -172,24 +111,6 @@
                 <canvas id="hourlyChart" height="130"></canvas>
             </div>
         </div>
-    </div>
-</div>
-
-<div class="card mb-3">
-    <div class="card-body">
-        <h6>Heatmap đông/vắng</h6>
-        <div class="heatmap-wrap">
-            <div class="table-responsive">
-                <table class="table table-bordered text-center align-middle" id="heatmapTable"></table>
-            </div>
-            <div id="heatTooltip"></div>
-        </div>
-        <div class="heat-legend mt-2">
-            <span class="heat-legend-item"><span class="heat-legend-swatch" style="background:rgba(59,130,246,.18)"></span>Vắng</span>
-            <span class="heat-legend-item"><span class="heat-legend-swatch" style="background:rgba(245,158,11,.35)"></span>Bình thường</span>
-            <span class="heat-legend-item"><span class="heat-legend-swatch" style="background:rgba(239,68,68,.60)"></span>Đông</span>
-        </div>
-        <small class="text-muted">Màu đậm hơn = đông hơn. Nhãn: Đông / Bình thường / Vắng.</small>
     </div>
 </div>
 
@@ -288,6 +209,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@latest/signalr.min.js"></script>
 <script>
     const apiBase = '/api/ScanAnalytics';
     const poisApi = '/api/PoisApi';
@@ -296,16 +218,12 @@
     const deviceHistoryDevicesApi = '/api/DevicePresence/history-devices';
     const trafficOverviewApi = '/api/ScanAnalytics/traffic-overview';
     const webOnlineApi = '/api/Online/count';
-    const webDetailOnlineApi = '/api/Online/web-detail-count';
-    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
     let timelineChart;
     let hourlyChart;
     let compareChart;
     let trafficChart;
     let latestOverview = null;
     let latestPatterns = null;
-    let latestHeatmap = null;
     let latestDeviceHistory = null;
     let latestTrafficOverview = null;
     let deviceHistoryPage = 1;
@@ -346,7 +264,8 @@
         const minute = endOfDay ? 59 : 0;
         const second = endOfDay ? 59 : 0;
 
-        const utcMs = Date.UTC(year, month - 1, day, hour - 7, minute, second);
+        // ScanTime được lưu dưới dạng UTC, nên không cần trừ 7 giờ
+        const utcMs = Date.UTC(year, month - 1, day, hour, minute, second);
         return new Date(utcMs).toISOString();
     }
 
@@ -356,6 +275,14 @@
             if (v !== null && v !== undefined && v !== '') query.append(k, v);
         });
         return query.toString() ? `?${query.toString()}` : '';
+    }
+
+    async function safeLoad(name, loader) {
+        try {
+            await loader();
+        } catch (err) {
+            console.error(`${name} failed:`, err);
+        }
     }
 
     function getFilters() {
@@ -401,60 +328,65 @@
         }
     }
 
-    async function loadWebOnlineUsers() {
-        const el = document.getElementById('webOnlineUsers');
-        const filters = getFilters();
-
-        try {
-            const endpoint = filters.restaurantId
-                ? `${webDetailOnlineApi}${buildQuery({ restaurantId: filters.restaurantId })}`
-                : webOnlineApi;
-
-            const res = await fetch(endpoint);
-            if (!res.ok) {
-                el.textContent = '0';
-                return;
-            }
-
-            const data = await res.json();
-            el.textContent = data.online ?? 0;
-        } catch {
-            el.textContent = '0';
-        }
-    }
-
     async function loadOverview() {
         const filters = getFilters();
         const res = await fetch(`${apiBase}/overview${buildQuery(filters)}`, { cache: 'no-store' });
-        if (!res.ok) return;
+        if (!res.ok) {
+            document.getElementById('totalScans').textContent = '0';
+            return;
+        }
 
         const data = await res.json();
         latestOverview = data;
         document.getElementById('totalScans').textContent = data.totalScans ?? 0;
+    }
 
-        const topDiv = document.getElementById('topRestaurants');
-        if (!data.topRestaurants || data.topRestaurants.length === 0) {
-            topDiv.innerHTML = '<span class="text-muted">Chưa có dữ liệu</span>';
+    async function loadNarrationStats() {
+        const filters = getFilters();
+        const res = await fetch(`${apiBase}/narration-stats${buildQuery(filters)}`, { cache: 'no-store' });
+        if (!res.ok) {
+            document.getElementById('totalNarrations').textContent = '0';
             return;
         }
 
-        topDiv.innerHTML = data.topRestaurants
-            .map((x, i) => `<div>${i + 1}. ${x.restaurantName} - <b>${x.count}</b> lượt</div>`)
-            .join('');
+        const data = await res.json();
+        document.getElementById('totalNarrations').textContent = data.totalNarrations ?? 0;
+
+        // Top 3 narrations by restaurant - old card
+        const topNarDiv = document.getElementById('topNarrationsRestaurants');
+        if (!data.byRestaurant || data.byRestaurant.length === 0) {
+            topNarDiv.innerHTML = '<span class="text-muted">Chưa có dữ liệu</span>';
+        } else {
+            topNarDiv.innerHTML = data.byRestaurant
+                .slice(0, 3)
+                .map((x, i) => `<div>${i + 1}. ${x.restaurantName} - <b>${x.count}</b> lần nghe</div>`)
+                .join('');
+        }
     }
 
     async function loadOnlineUsers() {
-        const el = document.getElementById('onlineUsers');
+        const el = document.getElementById('totalOnlineUsers');
 
         try {
-            const res = await fetch(devicePresenceApi);
-            if (!res.ok) {
-                el.textContent = '0';
-                return;
+            // Get app online users from devicePresenceApi
+            const appRes = await fetch(devicePresenceApi);
+            let appOnline = 0;
+            if (appRes.ok) {
+                const appData = await appRes.json();
+                appOnline = appData.count ?? 0;
             }
 
-            const data = await res.json();
-            el.textContent = data.count ?? 0;
+            // Get web online users from webOnlineApi (count cả trang detail + detail)
+            const webRes = await fetch(webOnlineApi);
+            let webOnline = 0;
+            if (webRes.ok) {
+                const webData = await webRes.json();
+                webOnline = webData.online ?? 0;
+            }
+
+            // Total = App + Web
+            const totalOnline = appOnline + webOnline;
+            el.textContent = totalOnline;
         } catch {
             el.textContent = '0';
         }
@@ -555,6 +487,7 @@
 
     async function loadTrafficOverview() {
         const renderTrafficChart = (labels, webData, appData) => {
+            if (typeof Chart === 'undefined') return;
             if (trafficChart) trafficChart.destroy();
             trafficChart = new Chart(document.getElementById('trafficChart'), {
                 type: 'line',
@@ -590,21 +523,20 @@
             const data = await res.json();
             latestTrafficOverview = data;
 
+            // NOTE: Don't update totalOnlineUsers here - use loadOnlineUsers() instead to avoid conflicts
             document.getElementById('trafficAppConnect').textContent = data.app?.connectCount ?? 0;
             document.getElementById('trafficAppDisconnect').textContent = data.app?.disconnectCount ?? 0;
             document.getElementById('trafficWebActive').textContent = data.web?.activeCount ?? 0;
-            document.getElementById('trafficUniqueDevices').textContent = `${data.web?.uniqueDevices ?? 0} / ${data.app?.uniqueDevices ?? 0}`;
 
             const labels = (data.timeline ?? []).map(x => fmtDate(x.date));
             const webData = (data.timeline ?? []).map(x => x.webCount ?? 0);
             const appData = (data.timeline ?? []).map(x => x.appCount ?? 0);
             renderTrafficChart(labels, webData, appData);
         } catch {
+            // Don't update totalOnlineUsers here - use loadOnlineUsers() instead
             document.getElementById('trafficAppConnect').textContent = '0';
             document.getElementById('trafficAppDisconnect').textContent = '0';
             document.getElementById('trafficWebActive').textContent = '0';
-            document.getElementById('trafficUniqueDevices').textContent = '0 / 0';
-
             const fromDate = document.getElementById('fromDate').value;
             const toDate = document.getElementById('toDate').value;
             const fallbackLabels = [];
@@ -637,6 +569,8 @@
         const hourlyLabels = (data.hourly ?? []).map(x => x.hour);
         const hourlyValues = (data.hourly ?? []).map(x => x.count);
 
+        if (typeof Chart === 'undefined') return;
+
         if (timelineChart) timelineChart.destroy();
         timelineChart = new Chart(document.getElementById('timelineChart'), {
             type: 'line',
@@ -664,89 +598,6 @@
                     backgroundColor: '#20c997'
                 }]
             }
-        });
-    }
-
-    function getHeatLevel(count, max) {
-        if (max <= 0) return 'Vắng';
-        const ratio = count / max;
-        if (ratio >= 0.66) return 'Đông';
-        if (ratio >= 0.33) return 'Bình thường';
-        return 'Vắng';
-    }
-
-    function heatColor(count, max) {
-        const level = getHeatLevel(count, max);
-        if (level === 'Đông') return 'rgba(239,68,68,.60)';
-        if (level === 'Bình thường') return 'rgba(245,158,11,.35)';
-        return 'rgba(59,130,246,.18)';
-    }
-
-    async function loadHeatmap() {
-        const filters = getFilters();
-        const res = await fetch(`${apiBase}/heatmap${buildQuery({ ...filters, _ts: Date.now() })}`, { cache: 'no-store' });
-        if (!res.ok) return;
-
-        const data = await res.json();
-        latestHeatmap = data;
-        const points = data.points ?? [];
-        const table = document.getElementById('heatmapTable');
-
-        const max = points.reduce((m, x) => Math.max(m, x.count || 0), 0);
-
-        const map = new Map();
-        points.forEach(p => {
-            map.set(`${p.dayOfWeek}-${p.hour}`, p);
-        });
-
-        let html = '<thead><tr><th>Day / Hour</th>';
-        for (let h = 0; h < 24; h++) {
-            html += `<th>${h}</th>`;
-        }
-        html += '</tr></thead><tbody>';
-
-        days.forEach(day => {
-            html += `<tr><th>${day}</th>`;
-            for (let h = 0; h < 24; h++) {
-                const key = `${day}-${h}`;
-                const item = map.get(key);
-                const count = item?.count ?? 0;
-                const level = item?.crowdLevel ?? 'Vắng';
-                html += `<td class="heat-cell" style="background:${heatColor(count, max)}" data-day="${day}" data-hour="${h}" data-count="${count}" data-level="${level}">${count}<br/><small>${level}</small></td>`;
-            }
-            html += '</tr>';
-        });
-
-        html += '</tbody>';
-        table.innerHTML = html;
-    }
-
-    function wireHeatTooltip() {
-        const table = document.getElementById('heatmapTable');
-        const tooltip = document.getElementById('heatTooltip');
-
-        table.addEventListener('mouseover', (e) => {
-            const cell = e.target.closest('.heat-cell');
-            if (!cell) return;
-
-            const day = cell.dataset.day;
-            const hour = cell.dataset.hour;
-            const count = cell.dataset.count;
-            const level = cell.dataset.level;
-
-            tooltip.innerHTML = `<div><b>${day}</b> - ${hour}:00</div><div>Lượt quét: <b>${count}</b></div><div>Mức độ: <b>${level}</b></div>`;
-            tooltip.style.display = 'block';
-        });
-
-        table.addEventListener('mousemove', (e) => {
-            if (tooltip.style.display !== 'block') return;
-            tooltip.style.left = `${e.clientX + 14}px`;
-            tooltip.style.top = `${e.clientY + 14}px`;
-        });
-
-        table.addEventListener('mouseout', (e) => {
-            if (!e.target.closest('.heat-cell')) return;
-            tooltip.style.display = 'none';
         });
     }
 
@@ -783,13 +634,6 @@
             rows.push(['Hourly']);
             rows.push(['Hour', 'Count']);
             (latestPatterns.hourly ?? []).forEach(x => rows.push([x.hour, x.count]));
-            rows.push([]);
-        }
-
-        if (latestHeatmap) {
-            rows.push(['Heatmap']);
-            rows.push(['DayOfWeek', 'Hour', 'Count', 'CrowdLevel']);
-            (latestHeatmap.points ?? []).forEach(x => rows.push([x.dayOfWeek, x.hour, x.count, x.crowdLevel]));
             rows.push([]);
         }
 
@@ -855,6 +699,8 @@
         const valuesA = (data.dayAHourly ?? []).map(x => x.count);
         const valuesB = (data.dayBHourly ?? []).map(x => x.count);
 
+        if (typeof Chart === 'undefined') return;
+
         if (compareChart) compareChart.destroy();
         compareChart = new Chart(document.getElementById('compareChart'), {
             type: 'line',
@@ -882,25 +728,25 @@
 
     async function refreshAll() {
         await Promise.all([
-            loadOverview(),
-            loadOnlineUsers(),
-            loadWebOnlineUsers(),
-            loadTrafficOverview(),
-            loadPatterns(),
-            loadHeatmap(),
-            loadDeviceHistory(),
-            loadDeviceHistoryDeviceOptions()
+            safeLoad('Overview', loadOverview),
+            safeLoad('Narration stats', loadNarrationStats),
+            safeLoad('Traffic overview', loadTrafficOverview),
+            safeLoad('Scan patterns', loadPatterns),
+            safeLoad('Device history', loadDeviceHistory),
+            safeLoad('Device list', loadDeviceHistoryDeviceOptions)
         ]);
+        // Update online users after traffic data is loaded
+        await safeLoad('Online users', loadOnlineUsers);
     }
 
     async function refreshOnlineCountersOnly() {
         await Promise.all([
-            loadOverview(),
-            loadHeatmap(),
-            loadOnlineUsers(),
-            loadWebOnlineUsers(),
-            loadDeviceHistory()
+            safeLoad('Overview', loadOverview),
+            safeLoad('Narration stats', loadNarrationStats),
+            safeLoad('Device history', loadDeviceHistory)
         ]);
+        // Update online users
+        await safeLoad('Online users', loadOnlineUsers);
     }
 
     document.getElementById('btnApply').addEventListener('click', refreshAll);
@@ -953,6 +799,99 @@
         await loadDeviceHistory();
     });
 
+    let scanHubConnection = null;
+    let reconnectAttempts = 0;
+    let narrationAudio = null;
+
+    async function initSignalR() {
+        try {
+            if (typeof signalR === 'undefined') {
+                console.warn('SignalR client is not available');
+                return;
+            }
+
+            scanHubConnection = new signalR.HubConnectionBuilder()
+                .withUrl('/scanhub', {
+                    withCredentials: true
+                })
+                .withAutomaticReconnect([0, 0, 0, 1000, 3000, 5000])
+                .build();
+
+            // 🎙️ LISTEN FOR SCAN & NARRATION EVENTS FROM BOTH APP & WEB
+            scanHubConnection.on('OnScanReceived', async (data) => {
+                console.log('🎙️ New scan with narration received:', data);
+
+                // Check filter before updating
+                const restaurantFilter = document.getElementById('restaurantFilter').value;
+                if (!restaurantFilter || restaurantFilter === data.restaurantId.toString()) {
+                    // Play narration audio if available
+                    if (data.audioUrl) {
+                        try {
+                            if (narrationAudio) {
+                                narrationAudio.pause();
+                            }
+                            narrationAudio = new Audio(data.audioUrl);
+                            narrationAudio.volume = 0.3; // Set volume to 30%
+                            await narrationAudio.play();
+                            console.log(`▶️ Playing narration for restaurant ${data.restaurantId}`);
+                        } catch (err) {
+                            console.warn('Failed to play narration:', err);
+                        }
+                    }
+
+                    // Show notification if narration is playing
+                    if (data.restaurantName) {
+                        console.log(`📢 Narration playing: ${data.restaurantName}`);
+                    }
+
+                    // Update counters
+                    await refreshOnlineCountersOnly();
+                }
+            });
+
+            scanHubConnection.onreconnected(async (connectionId) => {
+                console.log('SignalR reconnected:', connectionId);
+                reconnectAttempts = 0;
+                await resubscribeToScans();
+            });
+
+            scanHubConnection.onreconnecting((error) => {
+                reconnectAttempts++;
+                console.warn(`SignalR reconnecting (attempt ${reconnectAttempts}):`, error);
+            });
+
+            scanHubConnection.onclose((error) => {
+                console.warn('SignalR closed:', error);
+            });
+
+            await scanHubConnection.start();
+            console.log('🔌 SignalR connected - Ready to receive narrations from app & web');
+            await resubscribeToScans();
+        } catch (err) {
+            console.error('SignalR connection failed:', err);
+            // Continue without SignalR - polling will still work
+        }
+    }
+
+    async function resubscribeToScans() {
+        if (!scanHubConnection || scanHubConnection.state !== signalR.HubConnectionState.Connected) {
+            return;
+        }
+
+        const restaurantId = document.getElementById('restaurantFilter').value;
+        try {
+            if (restaurantId) {
+                await scanHubConnection.invoke('Subscribe', restaurantId);
+                console.log(`✅ Subscribed to restaurant ${restaurantId}`);
+            } else {
+                await scanHubConnection.invoke('Subscribe', '');
+                console.log('✅ Subscribed to all restaurants');
+            }
+        } catch (err) {
+            console.error('Failed to subscribe to scans:', err);
+        }
+    }
+
     (async function init() {
         const today = new Date();
         const sevenDaysAgo = new Date(today);
@@ -966,10 +905,23 @@
         document.getElementById('deviceHistoryToDate').value = fmtDate(today);
 
         await loadRestaurantOptions();
-        wireHeatTooltip();
         await refreshAll();
 
+        // Initialize SignalR for real-time narration & scan updates
+        await initSignalR();
+
+        // Update subscription when restaurant filter changes
+        document.getElementById('restaurantFilter').addEventListener('change', async () => {
+            await resubscribeToScans();
+            // Also refresh data when filter changes
+            await refreshAll();
+        });
+
+        // Keep existing polling for fallback
         setInterval(refreshOnlineCountersOnly, 2000);
         setInterval(loadTrafficOverview, 10000);
+
+        // Log that dashboard is ready
+        console.log('✅ Dashboard initialized with real-time narration support');
     })();
 </script>

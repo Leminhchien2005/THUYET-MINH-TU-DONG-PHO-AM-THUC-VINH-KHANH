@@ -151,6 +151,25 @@
             toggleButton.classList.add('btn-outline-secondary');
         }
 
+        // Hàm ghi log lượt nghe thuyết minh
+        function logNarrationListen() {
+            fetch('/api/restaurant/log-narration-listen', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                cache: 'no-store',
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    restaurantId: restaurantId,
+                    language: langCode,
+                    deviceId: tabId
+                })
+            }).catch(function () {
+                // Fail silently
+            });
+        }
+
         // Hàm phát
         function speakText() {
             if (!textToSpeak) {
@@ -184,6 +203,9 @@
             toggleButton.innerHTML = '⏹️';
             toggleButton.classList.remove('btn-outline-secondary');
             toggleButton.classList.add('btn-danger');
+
+            // Ghi log lượt nghe thuyết minh
+            logNarrationListen();
         }
 
         // Sự kiện click cho nút toggle

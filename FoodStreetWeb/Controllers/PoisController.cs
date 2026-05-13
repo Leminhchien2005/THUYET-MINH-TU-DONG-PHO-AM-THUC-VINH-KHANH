@@ -1195,10 +1195,11 @@ var foods = await _context.Foods
             }
         }
 
+        [AllowAnonymous]
         public IActionResult GenerateTDetailQr()
         {
             var baseUrl = $"{Request.Scheme}://{Request.Host}";
-            var url = $"{baseUrl}/restaurant/tdetail?deeplink={Uri.EscapeDataString("foodstreet://restaurants/tdetail")}";
+            var url = $"{baseUrl}/restaurant/tdetail?qr=tdetail&deeplink={Uri.EscapeDataString("foodstreet://restaurants/tdetail")}";
 
             using (QRCodeGenerator qrGenerator = new QRCodeGenerator())
             {
@@ -1211,10 +1212,11 @@ var foods = await _context.Foods
             }
         }
 
+        [AllowAnonymous]
         public IActionResult DownloadTDetailQr()
         {
             var baseUrl = $"{Request.Scheme}://{Request.Host}";
-            var url = $"{baseUrl}/restaurant/tdetail?deeplink={Uri.EscapeDataString("foodstreet://restaurants/tdetail")}";
+            var url = $"{baseUrl}/restaurant/tdetail?qr=tdetail&deeplink={Uri.EscapeDataString("foodstreet://restaurants/tdetail")}";
 
             using (QRCodeGenerator qrGenerator = new QRCodeGenerator())
             {
