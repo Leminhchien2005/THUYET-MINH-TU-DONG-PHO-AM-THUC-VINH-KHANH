@@ -11,6 +11,8 @@ namespace FoodStreetWeb.Controllers
     {
         private readonly AppDbContext _context;
 
+        private static readonly SemaphoreSlim _queue = new SemaphoreSlim(10);
+
         public PoisApiController(AppDbContext context)
         {
             _context = context;
@@ -22,62 +24,77 @@ namespace FoodStreetWeb.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<object>>> GetPois()
         {
-            var pois = await _context.Pois
+            Console.WriteLine($"WAIT  : {DateTime.Now:HH:mm:ss.fff}");
+
+            await _queue.WaitAsync();
+
+            Console.WriteLine($"START : {DateTime.Now:HH:mm:ss.fff}");
+
+            try
+            {
+                var pois = await _context.Pois
                 .Where(p => p.Status == PoiStatus.Approved)
                 .Include(p => p.Translations)
                 .Include(p => p.Foods)
                     .ThenInclude(f => f.Translations)
                 .ToListAsync();
 
-            var result = pois.Select(poi => new
-            {
-                poi.Id,
-                poi.Name,
-                poi.Latitude,
-                poi.Longitude,
-                poi.Radius,
-                poi.Description,
-
-                ImageUrl = BuildPublicImageUrl(poi.ImageUrl),
-
-                poi.OwnerId,
-                poi.Status,
-                poi.DistanceKm,
-                poi.Priority,
-
-                Foods = poi.Foods.Select(food => new
+                var result = pois.Select(poi => new
                 {
-                    food.Id,
-                    food.Name,
-                    food.Price,
-                    food.Description,
+                    poi.Id,
+                    poi.Name,
+                    poi.Latitude,
+                    poi.Longitude,
+                    poi.Radius,
+                    poi.Description,
 
-                    ImageUrl = BuildPublicImageUrl(food.ImageUrl),
+                    ImageUrl = BuildPublicImageUrl(poi.ImageUrl),
 
-                    food.PoiId,
+                    poi.OwnerId,
+                    poi.Status,
+                    poi.DistanceKm,
+                    poi.Priority,
 
-                    Translations = food.Translations.Select(t => new
+                    Foods = poi.Foods.Select(food => new
+                    {
+                        food.Id,
+                        food.Name,
+                        food.Price,
+                        food.Description,
+
+                        ImageUrl = BuildPublicImageUrl(food.ImageUrl),
+
+                        food.PoiId,
+
+                        Translations = food.Translations.Select(t => new
+                        {
+                            t.Id,
+                            t.FoodId,
+                            t.LanguageCode,
+                            t.Name,
+                            t.Description
+                        })
+                    }),
+
+                    Translations = poi.Translations.Select(t => new
                     {
                         t.Id,
-                        t.FoodId,
+                        t.PoiId,
                         t.LanguageCode,
                         t.Name,
                         t.Description
                     })
-                }),
+                });
 
-                Translations = poi.Translations.Select(t => new
-                {
-                    t.Id,
-                    t.PoiId,
-                    t.LanguageCode,
-                    t.Name,
-                    t.Description
-                })
-            });
-
-            return Ok(result);
+                return Ok(result);
+            }
+            finally
+            {
+                Console.WriteLine($"END   : {DateTime.Now:HH:mm:ss.fff}");
+                _queue.Release();
+            }
         }
+
 
         // =========================
         // GET: api/PoisApi/5

@@ -10,6 +10,17 @@ public class AudioController : ControllerBase
 {
     private readonly AppDbContext _context;
 
+    // tối đa 10 request tải audio cùng lúc
+    private static readonly SemaphoreSlim _queue =
+        new SemaphoreSlim(10);
+
+    // debug
+    private static int _running = 0;
+
+    // dùng chung HttpClient
+    private static readonly HttpClient _httpClient =
+        new HttpClient();
+
     public AudioController(AppDbContext context)
     {
         _context = context;
@@ -20,17 +31,64 @@ public class AudioController : ControllerBase
         int poiId,
         string lang)
     {
-        var audio = await _context.AudioTranslations
-            .FirstOrDefaultAsync(x =>
-                x.PoiId == poiId &&
-                x.LanguageCode == lang);
+        Console.WriteLine(
+            $"WAIT  : {DateTime.Now:HH:mm:ss.fff}"
+        );
 
-        if (audio == null ||
-            string.IsNullOrWhiteSpace(audio.AudioUrl))
+        await _queue.WaitAsync();
+
+        Interlocked.Increment(ref _running);
+
+        Console.WriteLine(
+            $"START : {DateTime.Now:HH:mm:ss.fff} | RUNNING = {_running}"
+        );
+
+        try
         {
-            return NotFound();
-        }
+            var audio = await _context.AudioTranslations
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x =>
+                    x.PoiId == poiId &&
+                    x.LanguageCode == lang);
 
-        return Ok(audio.AudioUrl);
+            if (audio == null ||
+                string.IsNullOrWhiteSpace(audio.AudioUrl))
+            {
+                return NotFound();
+            }
+
+            // tải FULL audio từ cloudinary
+            var bytes = await _httpClient.GetByteArrayAsync(
+                audio.AudioUrl
+            );
+
+            Console.WriteLine(
+                $"PLAY  : {DateTime.Now:HH:mm:ss.fff} | RUNNING = {_running}"
+            );
+
+            // trả binary audio
+            return File(
+                bytes,
+                "audio/wav"
+            );
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(
+                $"ERROR : {ex}"
+            );
+
+            return StatusCode(500, ex.ToString());
+        }
+        finally
+        {
+            Interlocked.Decrement(ref _running);
+
+            Console.WriteLine(
+                $"END   : {DateTime.Now:HH:mm:ss.fff} | RUNNING = {_running}"
+            );
+
+            _queue.Release();
+        }
     }
 }

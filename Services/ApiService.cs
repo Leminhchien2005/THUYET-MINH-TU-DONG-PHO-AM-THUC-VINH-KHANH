@@ -242,18 +242,19 @@ public class ApiService
         return segments.Length > 0 && int.TryParse(segments[^1], out poiId);
     }
 
-    public async Task<string?> GetAudioUrlAsync(
+    public async Task<byte[]?> GetAudioBytesAsync(
         int poiId,
         string lang)
     {
         try
         {
-            var response = await _httpClient.GetAsync($"api/audio/{poiId}/{lang}");
+            var response = await _httpClient.GetAsync(
+                $"api/audio/{poiId}/{lang}");
 
             if (!response.IsSuccessStatusCode)
                 return null;
 
-            return await response.Content.ReadAsStringAsync();
+            return await response.Content.ReadAsByteArrayAsync();
         }
         catch
         {

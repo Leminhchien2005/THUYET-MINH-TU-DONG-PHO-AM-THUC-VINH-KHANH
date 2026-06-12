@@ -79,7 +79,7 @@ public partial class MainPage : ContentPage
 
     private SemaphoreSlim GetPoiLock(int poiId)
     {
-        return _poiAudioLocks.GetOrAdd(poiId, _ => new SemaphoreSlim(5));
+        return _poiAudioLocks.GetOrAdd(poiId, _ => new SemaphoreSlim(10));
         // 5 người nghe cùng lúc / 1 POI
     }
     public string PoiIdQuery
@@ -1203,7 +1203,7 @@ public partial class MainPage : ContentPage
         if (_selectedPoi == null)
             return;
 
-        // Nếu đang phát thì dừng
+        // nếu đang phát thì dừng
         if (_speechCts != null && !_speechCts.IsCancellationRequested)
         {
             _speechCts.Cancel();
@@ -1227,29 +1227,40 @@ public partial class MainPage : ContentPage
         {
             var lang = Preferences.Get("lang", "vi");
 
-            // Log narration listen event
-            await LogNarrationListenAsync(_selectedPoi.Id, lang);
-
             // =========================
             // ƯU TIÊN AUDIO ONLINE
             // =========================
             if (Connectivity.Current.NetworkAccess == NetworkAccess.Internet)
             {
-                var audioUrl = await _apiService.GetAudioUrlAsync(
-                    _selectedPoi.Id,
-                    lang);
-
-                if (!string.IsNullOrWhiteSpace(audioUrl))
+                try
                 {
+                    var apiUrl =
+                        $"https://foodstreetweb-sfecqdx26a-as.a.run.app/api/audio/{_selectedPoi.Id}/{lang}";
+
                     var tempFile = Path.Combine(
                         FileSystem.CacheDirectory,
-                        $"audio_{_selectedPoi.Id}_{lang}.m4a");
+                        $"audio_{_selectedPoi.Id}_{lang}.wav");
 
-                    using (var httpClient = new HttpClient())
+                    // nếu chưa cache thì tải
+                    if (!File.Exists(tempFile))
                     {
-                        var bytes = await httpClient.GetByteArrayAsync(audioUrl);
+                        using var httpClient = new HttpClient();
 
-                        await File.WriteAllBytesAsync(tempFile, bytes);
+                        var response = await httpClient.GetAsync(apiUrl);
+
+                        // audio tồn tại
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var bytes = await response.Content.ReadAsByteArrayAsync();
+
+                            await File.WriteAllBytesAsync(
+                                tempFile,
+                                bytes);
+                        }
+                        else
+                        {
+                            throw new Exception("Audio not found");
+                        }
                     }
 
                     var stream = File.OpenRead(tempFile);
@@ -1261,6 +1272,12 @@ public partial class MainPage : ContentPage
                     // chờ phát xong
                     while (_audioPlayer.IsPlaying)
                     {
+                        if (_speechCts.IsCancellationRequested)
+                        {
+                            _audioPlayer.Stop();
+                            break;
+                        }
+
                         await Task.Delay(300);
                     }
 
@@ -1268,6 +1285,13 @@ public partial class MainPage : ContentPage
                     _audioPlayer = null;
 
                     return;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(
+                        $"ONLINE AUDIO ERROR: {ex.Message}");
+
+                    // fallback sang TTS
                 }
             }
 
@@ -1301,6 +1325,12 @@ public partial class MainPage : ContentPage
         }
         finally
         {
+            if (_audioPlayer != null)
+            {
+                _audioPlayer.Dispose();
+                _audioPlayer = null;
+            }
+
             if (_speechCts != null)
             {
                 _speechCts.Dispose();
@@ -1727,13 +1757,17 @@ public partial class MainPage : ContentPage
     async Task AutoSpeakPoiAsync(Poi poi, string fallbackText)
     {
         var sem = GetPoiLock(poi.Id);
+
         await sem.WaitAsync();
 
         try
         {
             // stop speech cũ
-            if (_speechCts != null && !_speechCts.IsCancellationRequested)
+            if (_speechCts != null &&
+                !_speechCts.IsCancellationRequested)
+            {
                 _speechCts.Cancel();
+            }
 
             _audioPlayer?.Stop();
             _audioPlayer?.Dispose();
@@ -1748,26 +1782,64 @@ public partial class MainPage : ContentPage
 
             var lang = Preferences.Get("lang", "vi");
 
-            if (Connectivity.Current.NetworkAccess == NetworkAccess.Internet)
+            // =========================
+            // ƯU TIÊN AUDIO ONLINE
+            // =========================
+            if (Connectivity.Current.NetworkAccess ==
+                NetworkAccess.Internet)
             {
                 try
                 {
-                    var audioUrl = await _apiService.GetAudioUrlAsync(poi.Id, lang);
+                    var apiUrl =
+                        $"https://foodstreetweb-sfecqdx26a-as.a.run.app/api/audio/{poi.Id}/{lang}";
 
-                    if (!string.IsNullOrWhiteSpace(audioUrl))
+                    var tempFile = Path.Combine(
+                        FileSystem.CacheDirectory,
+                        $"auto_audio_{poi.Id}_{lang}.wav");
+
+                    // xóa cache lỗi
+                    if (File.Exists(tempFile))
                     {
-                        var tempFile = Path.Combine(
-                            FileSystem.CacheDirectory,
-                            $"auto_audio_{poi.Id}_{lang}.m4a");
+                        var fileInfo = new FileInfo(tempFile);
 
-                        using (var httpClient = new HttpClient())
+                        if (fileInfo.Length == 0)
                         {
-                            var bytes = await httpClient.GetByteArrayAsync(audioUrl);
-                            await File.WriteAllBytesAsync(tempFile, bytes);
+                            File.Delete(tempFile);
                         }
+                    }
 
-                        using var stream = File.OpenRead(tempFile);
-                        _audioPlayer = _audioManager.CreatePlayer(stream);
+                    // tải audio nếu chưa có
+                    if (!File.Exists(tempFile))
+                    {
+                        using var httpClient = new HttpClient();
+
+                        var response =
+                            await httpClient.GetAsync(apiUrl);
+
+                        // có audio mới tải
+                        if (response.IsSuccessStatusCode)
+                        {
+                            var bytes =
+                                await response.Content.ReadAsByteArrayAsync();
+
+                            if (bytes != null &&
+                                bytes.Length > 0)
+                            {
+                                await File.WriteAllBytesAsync(
+                                    tempFile,
+                                    bytes);
+                            }
+                        }
+                    }
+
+                    // phát audio cache
+                    if (File.Exists(tempFile))
+                    {
+                        using var stream =
+                            File.OpenRead(tempFile);
+
+                        _audioPlayer =
+                            _audioManager.CreatePlayer(stream);
 
                         _audioPlayer.Play();
 
@@ -1785,21 +1857,25 @@ public partial class MainPage : ContentPage
                         _audioPlayer.Dispose();
                         _audioPlayer = null;
 
-                        return; // OK vì có finally bảo vệ
+                        return;
                     }
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine("AUTO AUDIO ERROR: " + ex.Message);
+                    Debug.WriteLine(
+                        "AUTO AUDIO ERROR: " + ex.Message);
                 }
             }
 
-            // fallback TTS
+            // =========================
+            // FALLBACK → TTS
+            // =========================
             await SpeakAsync(fallbackText);
         }
         catch (Exception ex)
         {
-            Debug.WriteLine("AUTO SPEAK ERROR: " + ex.Message);
+            Debug.WriteLine(
+                "AUTO SPEAK ERROR: " + ex.Message);
         }
         finally
         {
@@ -1808,7 +1884,7 @@ public partial class MainPage : ContentPage
                 StopAutoSpeakButton.IsVisible = false;
             });
 
-            sem.Release(); // ✅ luôn chạy an toàn
+            sem.Release();
         }
     }
 
@@ -1850,7 +1926,8 @@ public partial class MainPage : ContentPage
             string text = BuildSpeakText(new List<Poi> { poi });
 
             var sem = GetPoiLock(poi.Id);
-            await sem.WaitAsync(); // 🔥 VÀO HÀNG ĐỢI
+
+            await sem.WaitAsync();
 
             try
             {
@@ -1861,65 +1938,98 @@ public partial class MainPage : ContentPage
                 // =========================
                 if (Connectivity.Current.NetworkAccess == NetworkAccess.Internet)
                 {
-                    var audioUrl = await _apiService.GetAudioUrlAsync(poi.Id, lang);
-
-                    if (!string.IsNullOrWhiteSpace(audioUrl))
+                    try
                     {
+                        var apiUrl =
+                            $"https://foodstreetweb-sfecqdx26a-as.a.run.app/api/audio/{poi.Id}/{lang}";
+
                         var tempFile = Path.Combine(
                             FileSystem.CacheDirectory,
-                            $"auto_audio_{poi.Id}_{lang}.m4a");
+                            $"auto_audio_{poi.Id}_{lang}.wav");
 
-                        using (var httpClient = new HttpClient())
+                        // nếu file cache cũ lỗi thì xóa
+                        if (File.Exists(tempFile))
                         {
-                            var bytes = await httpClient.GetByteArrayAsync(audioUrl);
-                            await File.WriteAllBytesAsync(tempFile, bytes);
+                            var fileInfo = new FileInfo(tempFile);
+
+                            if (fileInfo.Length == 0)
+                            {
+                                File.Delete(tempFile);
+                            }
                         }
 
-                        using var stream = File.OpenRead(tempFile);
-
-                        _audioPlayer = _audioManager.CreatePlayer(stream);
-                        _audioPlayer.Play();
-
-                        while (_audioPlayer.IsPlaying)
+                        // tải audio nếu chưa có cache
+                        if (!File.Exists(tempFile))
                         {
-                            if (!_isAutoSpeakEnabled)
+                            using var httpClient = new HttpClient();
+
+                            var response = await httpClient.GetAsync(apiUrl);
+
+                            // nếu API không có audio -> fallback TTS
+                            if (response.IsSuccessStatusCode)
                             {
-                                _audioPlayer.Stop();
-                                break;
+                                var bytes = await response.Content.ReadAsByteArrayAsync();
+
+                                if (bytes != null && bytes.Length > 0)
+                                {
+                                    await File.WriteAllBytesAsync(
+                                        tempFile,
+                                        bytes);
+                                }
+                            }
+                        }
+
+                        // phát audio cache nếu tồn tại
+                        if (File.Exists(tempFile))
+                        {
+                            using var stream = File.OpenRead(tempFile);
+
+                            _audioPlayer = _audioManager.CreatePlayer(stream);
+
+                            _audioPlayer.Play();
+
+                            while (_audioPlayer.IsPlaying)
+                            {
+                                if (!_isAutoSpeakEnabled)
+                                {
+                                    _audioPlayer.Stop();
+                                    break;
+                                }
+
+                                await Task.Delay(300);
                             }
 
-                            await Task.Delay(300);
+                            _audioPlayer.Dispose();
+                            _audioPlayer = null;
+
+                            await Task.Delay(500);
+
+                            continue;
                         }
-
-                        _audioPlayer.Dispose();
-                        _audioPlayer = null;
-
-                        await Task.Delay(500);
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        // fallback nếu không có audio
-                        await SpeakAsync(text);
+                        Debug.WriteLine(
+                            $"AUTO AUDIO ERROR: {ex.Message}");
                     }
                 }
-                else
-                {
-                    // =========================
-                    // OFFLINE → TTS
-                    // =========================
-                    await SpeakAsync(text);
-                }
+
+                // =========================
+                // FALLBACK → TTS
+                // =========================
+                await SpeakAsync(text);
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"AUTO SPEAK ERROR: {ex.Message}");
+                Debug.WriteLine(
+                    $"AUTO SPEAK ERROR: {ex.Message}");
             }
             finally
             {
-                sem.Release(); // 🔥 LUÔN GIẢI PHÓNG QUEUE
+                sem.Release();
             }
 
-            await Task.Delay(500); // nghỉ giữa các quán
+            await Task.Delay(500);
         }
 
         // =========================
